@@ -3,9 +3,11 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
-import type { SchoolEvent } from '@/data/seed';
-import { isValidDateKey } from '@/lib/assignments';
+import { EVENTS, type SchoolEvent } from '@/data/seed';
+import { isValidDateKey, useAssignments } from '@/lib/assignments';
+import { ATTENDANCE_LABEL, effectiveKind, useAttendance } from '@/lib/attendance';
 import { usePersonalEvents } from '@/lib/personalEvents';
+import { useProfile } from '@/lib/profile';
 import { toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
 
 const KIND_LABEL: Record<SchoolEvent['kind'], string> = {
@@ -31,7 +33,40 @@ function dateLabel(dateKey: string): string {
 
 export default function CalendarScreen() {
   const { items: personal, add, remove } = usePersonalEvents();
+  const profile = useProfile();
+  const { map: attendanceMap } = useAttendance();
+  const { items: assignments } = useAssignments();
   const today = useMemo(() => new Date(), []);
+  const classDays = profile?.classDays ?? ['月', '水', '金'];
+
+  // --- 月間表示 ---
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedKey, setSelectedKey] = useState(toDateKey(today));
+  const viewDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  const viewYear = viewDate.getFullYear();
+  const viewMonth = viewDate.getMonth();
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const cells: (string | null)[] = [
+    ...Array.from({ length: firstDow }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => toDateKey(new Date(viewYear, viewMonth, i + 1))),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const schoolEventDates = useMemo(() => new Set(EVENTS.map((e) => e.date)), []);
+  const personalDates = useMemo(() => new Set(personal.map((e) => e.date)), [personal]);
+  const dueDates = useMemo(
+    () => new Set(assignments.filter((a) => a.status !== 'done').map((a) => a.dueDate)),
+    [assignments],
+  );
+  const selectedDate = useMemo(() => new Date(`${selectedKey}T00:00:00`), [selectedKey]);
+  const selectedKind = effectiveKind(selectedDate, classDays, attendanceMap);
+  const selectedEvents = [
+    ...EVENTS.filter((e) => e.date === selectedKey).map((e) => ({ title: e.title, time: e.time, place: e.place, chip: KIND_LABEL[e.kind] })),
+    ...personal
+      .filter((e) => e.date === selectedKey)
+      .map((e) => ({ title: e.title, time: e.time, place: e.place, chip: '個人' })),
+  ];
+  const selectedAssignments = assignments.filter((a) => a.dueDate === selectedKey && a.status !== 'done');
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(toDateKey(today));
@@ -96,6 +131,73 @@ export default function CalendarScreen() {
             </Pressable>
           </Link>
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Pressable onPress={() => setMonthOffset(monthOffset - 1)}>
+            <Text style={styles.linkText}>‹ 前月</Text>
+          </Pressable>
+          <Text style={styles.cardTitle}>
+            {viewYear}年{viewMonth + 1}月
+          </Text>
+          <Pressable onPress={() => setMonthOffset(monthOffset + 1)}>
+            <Text style={styles.linkText}>次月 ›</Text>
+          </Pressable>
+        </View>
+        <View style={styles.weekRow}>
+          {['日', '月', '火', '水', '木', '金', '土'].map((w) => (
+            <Text key={w} style={styles.weekCell}>
+              {w}
+            </Text>
+          ))}
+        </View>
+        <View style={styles.grid}>
+          {cells.map((key, i) => {
+            if (!key) return <View key={`empty-${i}`} style={styles.cell} />;
+            const d = new Date(`${key}T00:00:00`);
+            const isToday = key === toDateKey(today);
+            const isSelected = key === selectedKey;
+            const isSchool = effectiveKind(d, classDays, attendanceMap) === 'school';
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setSelectedKey(key)}
+                style={[styles.cell, isSelected && styles.cellSelected]}>
+                <Text style={[styles.cellDay, isToday && styles.cellToday, isSchool && styles.cellSchool]}>
+                  {d.getDate()}
+                </Text>
+                <View style={styles.dotRow}>
+                  {schoolEventDates.has(key) && <View style={[styles.dot, { backgroundColor: Colors.accent }]} />}
+                  {personalDates.has(key) && <View style={[styles.dot, { backgroundColor: Colors.success }]} />}
+                  {dueDates.has(key) && <View style={[styles.dot, { backgroundColor: Colors.danger }]} />}
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.note}>青＝学校行事、緑＝個人の予定、赤＝課題の期限。下線は登校日です。日付をタップすると下に詳細が出ます。</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{dateLabel(selectedKey)} の詳細</Text>
+        <Text style={styles.note}>登校予定：{ATTENDANCE_LABEL[selectedKind]}</Text>
+        {selectedEvents.length === 0 && selectedAssignments.length === 0 && (
+          <Text style={styles.note}>予定はありません。</Text>
+        )}
+        {selectedEvents.map((e, i) => (
+          <Text key={i} style={styles.noteDark}>
+            [{e.chip}] {e.title}
+            {e.time ? ` ${e.time}` : ''}
+            {e.place ? ` ・ ${e.place}` : ''}
+          </Text>
+        ))}
+        {selectedAssignments.map((a) => (
+          <Text key={a.id} style={styles.noteDark}>
+            [課題] {a.subject ? `${a.subject}：` : ''}
+            {a.title}（今日まで）
+          </Text>
+        ))}
       </View>
 
       <Pressable onPress={() => setShowForm(!showForm)} style={styles.addButton}>
@@ -173,6 +275,18 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     ...Shadow,
   },
+  cardTitle: { fontSize: FontSize.lead, fontWeight: '600', color: Colors.text },
+  weekRow: { flexDirection: 'row' },
+  weekCell: { width: '14.28%', textAlign: 'center', fontSize: FontSize.caption, color: Colors.subText, fontWeight: '600' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: '14.28%', paddingVertical: 6, alignItems: 'center', borderRadius: Radius.sm, minHeight: 44 },
+  cellSelected: { backgroundColor: Colors.accentSoft },
+  cellDay: { fontSize: FontSize.small, color: Colors.text },
+  cellToday: { color: Colors.accent, fontWeight: '700' },
+  cellSchool: { textDecorationLine: 'underline' },
+  dotRow: { flexDirection: 'row', gap: 2, marginTop: 2, height: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  noteDark: { fontSize: FontSize.body, color: Colors.text },
   date: { fontSize: FontSize.small, color: Colors.subText },
   kindChip: { backgroundColor: Colors.accentSoft, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
   kindText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '600' },

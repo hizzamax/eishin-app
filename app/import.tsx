@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
+import { isBackupCode, restoreBackupCode } from '@/lib/backup';
 import {
   importCandidatesAsPersonalEvents,
   looksLikeICS,
@@ -43,6 +44,28 @@ export default function ImportScreen() {
     );
     if (parsed.candidates.length === 0) {
       setError('予定が1件も読み取れませんでした。ファイルの形式を確認してください。');
+    }
+  };
+
+  const [backupText, setBackupText] = useState('');
+  const [backupResult, setBackupResult] = useState('');
+  const [backupError, setBackupError] = useState('');
+
+  const doRestore = async () => {
+    setBackupError('');
+    setBackupResult('');
+    if (!isBackupCode(backupText)) {
+      setBackupError('EISHIN-BACKUP1. で始まるバックアップコードを貼り付けてください');
+      return;
+    }
+    try {
+      const r = await restoreBackupCode(backupText);
+      await recordImport({ source: 'backup', added: r.restoredKeys, skipped: 0, note: 'バックアップから復元' });
+      setRecords(await loadImportHistory());
+      setBackupResult(`復元しました（${r.restoredKeys}種類のデータ）。各タブを開き直すと反映されます。現在のデータは上書きされます。`);
+      setBackupText('');
+    } catch (e) {
+      setBackupError(e instanceof Error ? e.message : '復元に失敗しました');
     }
   };
 
@@ -137,6 +160,28 @@ export default function ImportScreen() {
           <Text style={styles.success}>{result}</Text>
         </View>
       ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>バックアップから復元</Text>
+        <Text style={styles.note}>
+          設定タブで作ったバックアップコードを貼り付けると、この端末のデータを復元します。今あるデータは上書きされるので注意してください。
+        </Text>
+        <TextInput
+          style={[styles.input, styles.pasteInput]}
+          value={backupText}
+          onChangeText={setBackupText}
+          placeholder="EISHIN-BACKUP1. で始まるコードを貼り付け"
+          placeholderTextColor={Colors.subText}
+          autoCapitalize="none"
+          autoCorrect={false}
+          multiline
+        />
+        {backupError ? <Text style={styles.error}>{backupError}</Text> : null}
+        {backupResult ? <Text style={styles.success}>{backupResult}</Text> : null}
+        <Pressable onPress={doRestore} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>復元する</Text>
+        </Pressable>
+      </View>
 
       <Text style={styles.heading}>取り込み履歴</Text>
       {records.length === 0 && <Text style={styles.note}>まだ取り込み履歴はありません。</Text>}

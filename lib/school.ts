@@ -1,4 +1,5 @@
 import { EVENTS, PERIODS, SAMPLE_SUBJECTS, WEEKDAYS, type Period, type SchoolEvent, type WeekdayLabel } from '@/data/seed';
+import { effectiveSubjects, type SubjectsMap } from '@/lib/subjects';
 
 export function weekdayLabel(date: Date): WeekdayLabel {
   return WEEKDAYS[date.getDay()];
@@ -24,9 +25,11 @@ export type LessonRow = {
   subject: string | null; // null = 未設定
 };
 
-export function lessonsFor(date: Date, classDays: WeekdayLabel[]): LessonRow[] | null {
+export function lessonsFor(date: Date, classDays: WeekdayLabel[], subjectsMap?: SubjectsMap): LessonRow[] | null {
   if (!isClassDay(date, classDays)) return null;
-  const subjects = SAMPLE_SUBJECTS[weekdayLabel(date)];
+  const subjects = subjectsMap
+    ? effectiveSubjects(subjectsMap, weekdayLabel(date))
+    : SAMPLE_SUBJECTS[weekdayLabel(date)];
   return PERIODS.map((period, i) => ({
     period,
     subject: period.label === 'HR' ? null : subjects?.[i - 1] ?? null,

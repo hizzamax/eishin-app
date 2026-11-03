@@ -79,10 +79,15 @@ export default function CommunityScreen() {
     if (!post.payloadCode) return;
     try {
       const r = await importShareCode(post.payloadCode);
-      await recordImport({ source: 'community', added: r.zemiAdded + r.exceptionsApplied, skipped: 0, note: post.title });
+      await recordImport({
+        source: 'community',
+        added: r.zemiAdded + r.exceptionsApplied + r.subjectsDays,
+        skipped: 0,
+        note: post.title,
+      });
       setImportedIds((prev) => ({
         ...prev,
-        [post.id]: `取り込みました（ゼミ${r.zemiAdded}件・時間割変更${r.exceptionsApplied}件）`,
+        [post.id]: `取り込みました（科目${r.subjectsDays}曜日分・ゼミ${r.zemiAdded}件・時間割変更${r.exceptionsApplied}件）`,
       }));
     } catch {
       setImportedIds((prev) => ({ ...prev, [post.id]: '取り込みに失敗しました' }));

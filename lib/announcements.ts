@@ -17,6 +17,12 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    id: 'polish-update',
+    date: '2026-11-03',
+    title: '科目の編集・カレンダーの月表示・バックアップに対応しました',
+    body: '時間割タブで曜日ごとの科目を自分の科目に変更できるようになりました（共有にも反映されます）。カレンダーには月間表示がつき、設定からはデータのバックアップが作れます。ホームには次の登校日も表示されます。',
+  },
+  {
     id: 'phase4-update',
     date: '2026-11-03',
     title: 'コミュニティとファイル取り込みに対応しました',

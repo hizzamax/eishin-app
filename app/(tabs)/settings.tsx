@@ -1,6 +1,8 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { createBackupCode } from '@/lib/backup';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { ALL_CLASS_DAY_CANDIDATES, type WeekdayLabel } from '@/data/seed';
@@ -46,6 +48,17 @@ export default function SettingsScreen() {
     } else {
       await cancelAllNotifications();
       setNotifNote('通知を無効にしました');
+    }
+  };
+
+  const [backupNote, setBackupNote] = useState('');
+  const onBackup = async () => {
+    try {
+      const code = await createBackupCode();
+      await Share.share({ message: code });
+      setBackupNote('バックアップコードを作成しました。復元は「データの取り込み」画面からできます。コードは他の人に見せないでください（自分のデータが含まれます）。');
+    } catch {
+      setBackupNote('バックアップを作成できませんでした');
     }
   };
 
@@ -195,12 +208,23 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>バックアップ</Text>
+        <Text style={styles.note}>
+          プロフィール・科目・ゼミ・課題・予定など、この端末のデータを1つのコードにまとめます。機種変更や再インストールのときに、「データの取り込み」画面から復元できます。
+        </Text>
+        <Pressable onPress={onBackup} style={styles.saveButton}>
+          <Text style={styles.saveButtonText}>バックアップを作成して共有</Text>
+        </Pressable>
+        {backupNote ? <Text style={styles.note}>{backupNote}</Text> : null}
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>アプリ情報</Text>
         <Text style={styles.note}>英心アプリ（非公式） バージョン 1.0.0</Text>
         <Text style={styles.note}>
           このアプリは生徒有志による非公式アプリです。学校公式のものではなく、学校との提携・公式認定を受けたものではありません。
         </Text>
-        <Text style={styles.note}>ダークモード・バックアップは今後のアップデートで対応予定です。</Text>
+        <Text style={styles.note}>ダークモードは今後のアップデートで対応予定です。</Text>
       </View>
     </ScrollView>
   );

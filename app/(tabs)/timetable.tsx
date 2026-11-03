@@ -3,10 +3,12 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
-import { FREE_DAYS_NOTE, PERIODS, SAMPLE_SUBJECTS, WEEKDAYS, type WeekdayLabel } from '@/data/seed';
+import { FREE_DAYS_NOTE, PERIODS, WEEKDAYS, type WeekdayLabel } from '@/data/seed';
 import { applyExceptions, upcomingExceptions, useExceptions } from '@/lib/exceptions';
 import { useProfile } from '@/lib/profile';
 import { lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
+import { subjectColor } from '@/lib/subjectColor';
+import { effectiveSubjects, isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiForWeekday, type ZemiEntry } from '@/lib/zemi';
 
 const DAY_TABS: WeekdayLabel[] = ['月', '火', '水', '木', '金', '土'];
@@ -19,7 +21,11 @@ export default function TimetableScreen() {
 
   const classDays = profile?.classDays ?? ['月', '水', '金'];
   const isDay = classDays.includes(selected);
-  const subjects = SAMPLE_SUBJECTS[selected];
+  const { map: subjectsMap, setSubject, resetDay } = useSubjects();
+  const subjects = effectiveSubjects(subjectsMap, selected);
+  const customDay = isCustomDay(subjectsMap, selected);
+  const [editingSubjectIdx, setEditingSubjectIdx] = useState<number | null>(null);
+  const [subjectDraft, setSubjectDraft] = useState('');
 
   // --- 特定日の変更（例外） ---
   const nextDays = useMemo(() => {
@@ -33,7 +39,7 @@ export default function TimetableScreen() {
   }, []);
   const [editDateKey, setEditDateKey] = useState<string>(nextDays[0].key);
   const editDate = useMemo(() => new Date(`${editDateKey}T00:00:00`), [editDateKey]);
-  const editRowsRaw = lessonsFor(editDate, classDays);
+  const editRowsRaw = lessonsFor(editDate, classDays, subjectsMap);
   const editRows = editRowsRaw ? applyExceptions(editRowsRaw, editDate, exceptions) : null;
   const [editingPeriod, setEditingPeriod] = useState<string | null>(null);
   const [subjectInput, setSubjectInput] = useState('');
@@ -108,21 +114,63 @@ export default function TimetableScreen() {
       ) : (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{selected}曜日の時間割</Text>
-          {PERIODS.map((period, i) => (
-            <View key={period.label} style={styles.row}>
-              <Text style={styles.time}>
-                {period.start}–{period.end}
-              </Text>
-              <Text style={styles.label}>{period.label}</Text>
-              <Text style={styles.subject}>
-                {period.label === 'HR' ? 'ホームルーム' : subjects?.[i - 1] ?? '未設定'}
-              </Text>
-            </View>
-          ))}
-          {subjects ? (
-            <Text style={styles.note}>※ 科目はサンプルです（週ごとに変わります）</Text>
+          {PERIODS.map((period, i) => {
+            const isHR = period.label === 'HR';
+            const subject = isHR ? null : subjects?.[i - 1] ?? null;
+            return (
+              <View key={period.label}>
+                <Pressable
+                  disabled={isHR}
+                  onPress={() => {
+                    setEditingSubjectIdx(editingSubjectIdx === i - 1 ? null : i - 1);
+                    setSubjectDraft(subject ?? '');
+                  }}
+                  style={styles.row}>
+                  <Text style={styles.time}>
+                    {period.start}–{period.end}
+                  </Text>
+                  <Text style={styles.label}>{period.label}</Text>
+                  {subject ? <View style={[styles.subjectDot, { backgroundColor: subjectColor(subject) }]} /> : null}
+                  <Text style={styles.subject}>{isHR ? 'ホームルーム' : subject ?? '未設定'}</Text>
+                </Pressable>
+                {!isHR && editingSubjectIdx === i - 1 && (
+                  <View style={styles.editor}>
+                    <TextInput
+                      style={styles.input}
+                      value={subjectDraft}
+                      onChangeText={setSubjectDraft}
+                      placeholder="科目名（空欄で未設定）"
+                      placeholderTextColor={Colors.subText}
+                    />
+                    <View style={styles.row}>
+                      <Pressable
+                        onPress={() => {
+                          setSubject(selected, i - 1, subjectDraft);
+                          setEditingSubjectIdx(null);
+                        }}
+                        style={styles.smallButton}>
+                        <Text style={styles.smallButtonText}>科目を保存</Text>
+                      </Pressable>
+                      <Pressable onPress={() => setEditingSubjectIdx(null)} style={styles.smallButton}>
+                        <Text style={styles.smallButtonText}>閉じる</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+          {customDay ? (
+            <>
+              <Text style={styles.note}>登録済みの科目です。科目の行をタップすると変更できます。</Text>
+              <Pressable onPress={() => resetDay(selected)}>
+                <Text style={styles.smallButtonDanger}>この曜日をサンプル表示に戻す</Text>
+              </Pressable>
+            </>
+          ) : subjects ? (
+            <Text style={styles.note}>※ 科目はサンプルです。科目の行をタップすると、自分の科目に変更できます。</Text>
           ) : (
-            <Text style={styles.note}>この曜日の科目はまだ登録されていません。</Text>
+            <Text style={styles.note}>この曜日の科目はまだ登録されていません。科目の行をタップして登録できます。</Text>
           )}
         </View>
       )}
@@ -368,6 +416,7 @@ const styles = StyleSheet.create({
   time: { fontSize: FontSize.small, color: Colors.subText, width: 96 },
   label: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text, width: 36 },
   subject: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
+  subjectDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center' },
   changedBadge: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
   note: { fontSize: FontSize.small, color: Colors.subText },
   noteDark: { fontSize: FontSize.body, color: Colors.text },

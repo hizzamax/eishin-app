@@ -12,6 +12,8 @@ import { applyExceptions, upcomingExceptions, useExceptions, type AppliedRow } f
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
 import { formatDate, hasSampleSubjects, lessonsFor, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
+import { subjectColor } from '@/lib/subjectColor';
+import { isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiFor } from '@/lib/zemi';
 
 function minutesOf(hhmm: string): number {
@@ -38,12 +40,21 @@ export default function HomeScreen() {
   const { items: zemiItems } = useZemi();
   const { items: announcementItems, unreadCount } = useAnnouncements();
   const latestAnnouncement = announcementItems[0];
+  const { map: subjectsMap } = useSubjects();
 
   const now = useMemo(() => new Date(), []);
   const classDays = profile?.classDays ?? ['月', '水', '金'];
   const kind = effectiveKind(now, classDays, attendanceMap);
 
-  const rawLessons = kind === 'school' ? lessonsFor(now, classDays) : null;
+  const nextSchoolDay = useMemo(() => {
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      if (effectiveKind(d, classDays, attendanceMap) === 'school') return d;
+    }
+    return null;
+  }, [now, classDays, attendanceMap]);
+
+  const rawLessons = kind === 'school' ? lessonsFor(now, classDays, subjectsMap) : null;
   const lessons = rawLessons ? applyExceptions(rawLessons, now, exceptions) : null;
   const upcoming = lessons ? nextFromRows(now, lessons) : null;
 
@@ -88,6 +99,9 @@ export default function HomeScreen() {
                   {row.period.start}–{row.period.end}
                 </Text>
                 <Text style={styles.lessonLabel}>{row.period.label}</Text>
+                {row.subject ? (
+                  <View style={[styles.subjectDot, { backgroundColor: subjectColor(row.subject) }]} />
+                ) : null}
                 <Text style={styles.lessonSubject}>
                   {row.changed && row.subject === null
                     ? '休講'
@@ -98,7 +112,14 @@ export default function HomeScreen() {
             ))}
           </View>
         ) : null}
-        {lessons && hasSampleSubjects(now) && <Text style={styles.note}>※ 科目はサンプルです（週ごとに変わります）</Text>}
+        {lessons && hasSampleSubjects(now) && !isCustomDay(subjectsMap, weekdayLabel(now)) && (
+          <Text style={styles.note}>※ 科目はサンプルです（時間割タブで自分の科目に変更できます）</Text>
+        )}
+        {kind !== 'school' && nextSchoolDay && (
+          <Text style={styles.note}>
+            次の登校日：{nextSchoolDay.getMonth() + 1}月{nextSchoolDay.getDate()}日（{weekdayLabel(nextSchoolDay)}）
+          </Text>
+        )}
         {upcoming && (
           <Text style={styles.nextLesson}>
             次の授業：{upcoming.row.period.label}
@@ -226,6 +247,7 @@ const styles = StyleSheet.create({
   lessonTime: { fontSize: FontSize.small, color: Colors.subText, width: 96 },
   lessonLabel: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text, width: 36 },
   lessonSubject: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
+  subjectDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center' },
   changedBadge: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
   nextLesson: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600', marginTop: Spacing.xs },
   linkButton: { marginTop: Spacing.xs },

@@ -3,6 +3,7 @@ import { newId } from '@/lib/assignments';
 import { loadExceptionsAll, saveExceptionsAll, type TimetableException } from '@/lib/exceptions';
 import { syncNotifications } from '@/lib/notifications';
 import { loadProfile, saveProfile } from '@/lib/profile';
+import { loadSubjectsMap, saveSubjectsMap, type SubjectsMap } from '@/lib/subjects';
 import { loadZemiAll, saveZemiAll, type ZemiEntry } from '@/lib/zemi';
 
 /**
@@ -10,7 +11,7 @@ import { loadZemiAll, saveZemiAll, type ZemiEntry } from '@/lib/zemi';
  * アカウントやサーバーを使わず、端末同士で直接渡せる形にする。
  * 共有コード（文字列）と、そのコードをそのまま入れたQRコードの2通り。
  *
- * 共有されるもの：クラス・コース・授業曜日・ゼミ・時間割変更（例外）
+ * 共有されるもの：クラス・コース・授業曜日・登録した科目・ゼミ・時間割変更（例外）
  * 共有されないもの：名前・個人的な予定・課題（個人情報のため）
  */
 
@@ -21,6 +22,8 @@ export type SharePayload = {
   kind: 'eishin-timetable-share';
   exportedAt: string;
   profile: { className: string; course: string; classDays: WeekdayLabel[] };
+  /** 利用者が登録した曜日ごとの科目（サンプルは含めない） */
+  subjects?: SubjectsMap;
   zemi: { name: string; weekday: WeekdayLabel; start: string; end: string; place: string }[];
   exceptions: { date: string; periodLabel: string; subject: string | null; note: string }[];
 };
@@ -83,7 +86,8 @@ function bytesToUtf8(bytes: number[]): string {
   return out;
 }
 
-function encodeBase64Url(text: string): string {
+/** バックアップ機能でも使うため公開する */
+export function encodeBase64Url(text: string): string {
   const bytes = utf8Bytes(text);
   let out = '';
   for (let i = 0; i < bytes.length; i += 3) {
@@ -98,7 +102,8 @@ function encodeBase64Url(text: string): string {
   return out.replace(/\+/g, '-').replace(/\//g, '_');
 }
 
-function decodeBase64Url(code: string): string {
+/** バックアップ機能でも使うため公開する */
+export function decodeBase64Url(code: string): string {
   const normalized = code.replace(/-/g, '+').replace(/_/g, '/');
   const bytes: number[] = [];
   let buffer = 0;
@@ -122,11 +127,13 @@ export async function buildSharePayload(): Promise<SharePayload> {
   const profile = await loadProfile();
   const zemi = await loadZemiAll();
   const exceptions = await loadExceptionsAll();
+  const subjects = await loadSubjectsMap();
   return {
     v: 1,
     kind: 'eishin-timetable-share',
     exportedAt: new Date().toISOString(),
     profile: { className: profile.className, course: profile.course, classDays: profile.classDays },
+    subjects,
     zemi: zemi.map((z) => ({ name: z.name, weekday: z.weekday, start: z.start, end: z.end, place: z.place })),
     exceptions: exceptions.map((e) => ({ date: e.date, periodLabel: e.periodLabel, subject: e.subject, note: e.note })),
   };
@@ -158,6 +165,7 @@ export function parseShareCode(code: string): SharePayload {
 export type ImportResult = {
   zemiAdded: number;
   exceptionsApplied: number;
+  subjectsDays: number;
   className: string;
   course: string;
 };
@@ -181,6 +189,20 @@ export async function importShareCode(code: string): Promise<ImportResult> {
         ? payload.profile.classDays
         : profile.classDays,
   });
+
+  // 科目：共有された登録済み科目を曜日ごとに反映する
+  let subjectsDays = 0;
+  if (payload.subjects && typeof payload.subjects === 'object') {
+    const current = await loadSubjectsMap();
+    const nextMap: SubjectsMap = { ...current };
+    for (const [weekday, arr] of Object.entries(payload.subjects)) {
+      if (Array.isArray(arr)) {
+        nextMap[weekday as WeekdayLabel] = arr.map((s) => (typeof s === 'string' ? s : null));
+        subjectsDays++;
+      }
+    }
+    if (subjectsDays > 0) await saveSubjectsMap(nextMap);
+  }
 
   const zemiExisting: ZemiEntry[] = await loadZemiAll();
   const zemiNext = [...zemiExisting];
@@ -218,6 +240,7 @@ export async function importShareCode(code: string): Promise<ImportResult> {
   return {
     zemiAdded,
     exceptionsApplied,
+    subjectsDays,
     className: payload.profile.className,
     course: payload.profile.course,
   };

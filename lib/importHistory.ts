@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { newId } from '@/lib/assignments';
 
 /** データ取り込みの履歴（SPEC 6章：取得元の記録・最終取得日時・更新履歴） */
-export type ImportSource = 'ics' | 'csv' | 'community' | 'share-code';
+export type ImportSource = 'ics' | 'csv' | 'community' | 'share-code' | 'backup';
 
 export const IMPORT_SOURCE_LABEL: Record<ImportSource, string> = {
   ics: 'ICSファイル',
   csv: 'CSVファイル',
   community: 'コミュニティ',
   'share-code': '共有コード',
+  backup: 'バックアップ復元',
 };
 
 export type ImportRecord = {
