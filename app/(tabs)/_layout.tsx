@@ -14,10 +14,10 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: Colors.background,
           borderTopColor: Colors.border,
-          // Web（スマホブラウザ）では下端がブラウザのバーに隠れてラベルが切れるため高めにする
-          height: Platform.OS === 'web' ? 84 : 64,
+          // Web（スマホブラウザ）では下端がブラウザのバーに隠れてラベルが切れるため少しだけ高めにする
+          height: Platform.OS === 'web' ? 72 : 64,
           paddingTop: 6,
-          paddingBottom: Platform.OS === 'web' ? 20 : 8,
+          paddingBottom: Platform.OS === 'web' ? 12 : 8,
         },
         headerStyle: { backgroundColor: Colors.background },
         headerShadowVisible: false,
