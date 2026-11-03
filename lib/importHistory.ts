@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 
 import { newId } from '@/lib/assignments';
 
@@ -49,15 +50,17 @@ export async function recordImport(rec: Omit<ImportRecord, 'id' | 'at'>): Promis
 
 export function useImportHistory() {
   const [records, setRecords] = useState<ImportRecord[]>([]);
-  useEffect(() => {
-    let alive = true;
-    loadImportHistory().then((list) => {
-      if (alive) setRecords(list);
-    });
-    return () => {
-      alive = false;
-    };
+  const reload = useCallback(() => {
+    loadImportHistory().then(setRecords);
   }, []);
+  useEffect(() => {
+    reload();
+  }, [reload]);
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
   return { records, setRecords };
 }
 

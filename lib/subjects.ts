@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { SAMPLE_SUBJECTS, type WeekdayLabel } from '@/data/seed';
+import { PERIODS, SAMPLE_SUBJECTS, type WeekdayLabel } from '@/data/seed';
 
 /**
  * 曜日ごとの通常科目（1限・2限・3限の順、nullは未設定）。
@@ -11,7 +12,7 @@ import { SAMPLE_SUBJECTS, type WeekdayLabel } from '@/data/seed';
 export type SubjectsMap = Partial<Record<WeekdayLabel, (string | null)[]>>;
 
 const KEY = 'eishin.subjects.v1';
-export const LESSON_COUNT = 3;
+export const LESSON_COUNT = PERIODS.filter((p) => p.label !== 'HR').length;
 
 export async function loadSubjectsMap(): Promise<SubjectsMap> {
   try {
@@ -45,18 +46,22 @@ export function useSubjects() {
   const [map, setMap] = useState<SubjectsMap>({});
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const reload = useCallback(() => {
     loadSubjectsMap().then((m) => {
-      if (alive) {
-        setMap(m);
-        setLoaded(true);
-      }
+      setMap(m);
+      setLoaded(true);
     });
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const persist = useCallback((next: SubjectsMap) => {
     setMap(next);

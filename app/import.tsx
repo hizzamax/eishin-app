@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { isBackupCode, restoreBackupCode } from '@/lib/backup';
+import { confirmAction } from '@/lib/confirm';
 import {
   importCandidatesAsPersonalEvents,
   looksLikeICS,
@@ -51,22 +52,34 @@ export default function ImportScreen() {
   const [backupResult, setBackupResult] = useState('');
   const [backupError, setBackupError] = useState('');
 
-  const doRestore = async () => {
+  const doRestoreExec = async () => {
     setBackupError('');
     setBackupResult('');
-    if (!isBackupCode(backupText)) {
-      setBackupError('EISHIN-BACKUP1. で始まるバックアップコードを貼り付けてください');
-      return;
-    }
     try {
       const r = await restoreBackupCode(backupText);
       await recordImport({ source: 'backup', added: r.restoredKeys, skipped: 0, note: 'バックアップから復元' });
       setRecords(await loadImportHistory());
-      setBackupResult(`復元しました（${r.restoredKeys}種類のデータ）。各タブを開き直すと反映されます。現在のデータは上書きされます。`);
+      setBackupResult(`復元しました（${r.restoredKeys}種類のデータ）。他のタブは、開いたときに自動で反映されます。`);
       setBackupText('');
     } catch (e) {
       setBackupError(e instanceof Error ? e.message : '復元に失敗しました');
     }
+  };
+
+  const doRestore = () => {
+    setBackupError('');
+    if (!isBackupCode(backupText)) {
+      setBackupError('EISHIN-BACKUP1. で始まるバックアップコードを貼り付けてください');
+      return;
+    }
+    confirmAction(
+      'バックアップから復元しますか？',
+      '現在のデータはバックアップの内容で上書きされます。',
+      () => {
+        void doRestoreExec();
+      },
+      '復元する',
+    );
   };
 
   const pickFile = async () => {
@@ -111,7 +124,7 @@ export default function ImportScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>ファイルから取り込む</Text>
         <Text style={styles.note}>
-          ICS（カレンダー）ファイルと、CSVファイル（日付,タイトル,時間，場所の順）に対応しています。取り込んだ予定は「個人の予定」として保存されます。
+          ICS（カレンダー）ファイルと、CSVファイル（日付,タイトル,時間,場所の順）に対応しています。取り込んだ予定は「個人の予定」として保存されます。
         </Text>
         <Pressable onPress={pickFile} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>ファイルを選ぶ（.ics / .csv）</Text>
@@ -128,7 +141,13 @@ export default function ImportScreen() {
           multiline
         />
         <Pressable
-          onPress={() => pasteText.trim() && analyze(pasteText)}
+          onPress={() => {
+            if (!pasteText.trim()) {
+              setError('内容を貼り付けてから「解析する」を押してください');
+              return;
+            }
+            analyze(pasteText);
+          }}
           style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>貼り付けた内容を解析する</Text>
         </Pressable>
@@ -197,9 +216,6 @@ export default function ImportScreen() {
           </Text>
         </View>
       ))}
-      <Text style={styles.footer}>
-        学校の公開ページからの自動取得は、内容の正確さを確認できないため行っていません。配布されたファイルを取り込む形にしています。
-      </Text>
     </ScrollView>
   );
 }
@@ -228,13 +244,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    fontSize: FontSize.small,
+    fontSize: FontSize.body,
     color: Colors.text,
     backgroundColor: Colors.background,
   },
   pasteInput: { minHeight: 96, textAlignVertical: 'top' },
-  primaryButton: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center' },
-  primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
+  primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center' },
+  primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   ghostButton: { paddingVertical: Spacing.sm, alignItems: 'center' },
   ghostButtonText: { color: Colors.subText, fontSize: FontSize.body },
   error: { color: Colors.danger, fontSize: FontSize.small, lineHeight: 20 },

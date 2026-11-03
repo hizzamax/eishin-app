@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 
 import { DEFAULT_PROFILE, type WeekdayLabel } from '@/data/seed';
 
@@ -32,17 +33,19 @@ export async function saveProfile(profile: Profile): Promise<void> {
   await AsyncStorage.setItem(KEY, JSON.stringify(profile));
 }
 
-/** プロフィールを読み込むフック。読み込み中は null。 */
+/** プロフィールを読み込むフック。読み込み中は null。タブを開き直すたびに読み直す。 */
 export function useProfile(): Profile | null {
   const [profile, setProfile] = useState<Profile | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadProfile().then((p) => {
-      if (alive) setProfile(p);
-    });
-    return () => {
-      alive = false;
-    };
+  const reload = useCallback(() => {
+    loadProfile().then(setProfile);
   }, []);
+  useEffect(() => {
+    reload();
+  }, [reload]);
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
   return profile;
 }

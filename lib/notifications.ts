@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
-import { useEffect, useState } from 'react';
 
 import { EVENTS } from '@/data/seed';
 
@@ -58,20 +57,6 @@ export async function loadNotifSettings(): Promise<NotifSettings> {
 
 export async function saveNotifSettings(settings: NotifSettings): Promise<void> {
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-export function useNotifSettings() {
-  const [settings, setSettings] = useState<NotifSettings | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadNotifSettings().then((s) => {
-      if (alive) setSettings(s);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return { settings, setSettings };
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -169,7 +154,10 @@ export async function syncNotifications(
       candidates.push({
         date: at(shiftDateKey(ex.date, -1), 20, 0),
         title: '明日の時間割変更',
-        body: `${ex.date} ${ex.periodLabel}：${ex.subject === null ? '休講' : ex.subject}`,
+        body: (() => {
+          const d = new Date(`${ex.date}T00:00:00`);
+          return `${d.getMonth() + 1}月${d.getDate()}日 ${ex.periodLabel}：${ex.subject === null ? '休講' : ex.subject}`;
+        })(),
       });
     }
 

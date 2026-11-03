@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { syncNotifications } from '@/lib/notifications';
@@ -24,7 +25,9 @@ export function newId(): string {
 export function isValidDateKey(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00`);
-  return !Number.isNaN(d.getTime());
+  if (Number.isNaN(d.getTime())) return false;
+  const [y, m, day] = s.split('-').map(Number);
+  return d.getFullYear() === y && d.getMonth() + 1 === m && d.getDate() === day;
 }
 
 /** 期限まであと何日か（負なら期限切れ） */
@@ -66,18 +69,23 @@ export function useAssignments() {
   const [items, setItems] = useState<Assignment[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const reload = useCallback(() => {
     loadAll().then((list) => {
-      if (alive) {
-        setItems(list);
-        setLoaded(true);
-      }
+      setItems(list);
+      setLoaded(true);
     });
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  // 他の画面で変更・復元された内容を、タブを開き直したときに反映する
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const persist = useCallback((next: Assignment[]) => {
     setItems(next);

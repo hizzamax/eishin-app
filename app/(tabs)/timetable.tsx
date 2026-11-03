@@ -8,6 +8,7 @@ import { FREE_DAYS_NOTE, PERIODS, WEEKDAYS, type WeekdayLabel } from '@/data/see
 import { applyExceptions, upcomingExceptions, useExceptions } from '@/lib/exceptions';
 import { useProfile } from '@/lib/profile';
 import { lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
+import { confirmAction } from '@/lib/confirm';
 import { subjectColor } from '@/lib/subjectColor';
 import { effectiveSubjects, isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiForWeekday, type ZemiEntry } from '@/lib/zemi';
@@ -44,6 +45,8 @@ export default function TimetableScreen() {
   const editRows = editRowsRaw ? applyExceptions(editRowsRaw, editDate, exceptions) : null;
   const [editingPeriod, setEditingPeriod] = useState<string | null>(null);
   const [subjectInput, setSubjectInput] = useState('');
+  const [exceptionError, setExceptionError] = useState('');
+  const [zemiOpen, setZemiOpen] = useState<boolean | null>(null);
   const nearExceptions = upcomingExceptions(exceptions, new Date());
 
   // --- ゼミ ---
@@ -62,7 +65,17 @@ export default function TimetableScreen() {
       setZemiError('時間は 15:00 の形式で入力してください');
       return;
     }
-    const draft = { ...zemiDraft, name: zemiDraft.name.trim() };
+    const normalize = (t: string) => {
+      const [h, m] = t.split(':');
+      return `${h.padStart(2, '0')}:${m}`;
+    };
+    const start = normalize(zemiDraft.start);
+    const end = normalize(zemiDraft.end);
+    if (start >= end) {
+      setZemiError('終了時間は開始時間より後にしてください');
+      return;
+    }
+    const draft = { ...zemiDraft, name: zemiDraft.name.trim(), start, end };
     if (editingZemiId) updateZemi(editingZemiId, draft);
     else addZemi(draft);
     setZemiDraft({ name: '', weekday: '火', start: '', end: '', place: '' });
@@ -81,6 +94,7 @@ export default function TimetableScreen() {
     upsert({ date: editDateKey, periodLabel: editingPeriod, subject, note: '' });
     setEditingPeriod(null);
     setSubjectInput('');
+    setExceptionError('');
   };
 
   const clearException = (periodLabel: string) => {
@@ -163,7 +177,7 @@ export default function TimetableScreen() {
           {customDay ? (
             <>
               <Text style={styles.note}>登録済みの科目です。科目の行をタップすると変更できます。</Text>
-              <Pressable onPress={() => resetDay(selected)}>
+              <Pressable onPress={() => confirmAction('サンプル表示に戻しますか？', 'この曜日の登録済み科目が消え、サンプル表示に戻ります。', () => resetDay(selected), '戻す')}>
                 <Text style={styles.smallButtonDanger}>この曜日をサンプル表示に戻す</Text>
               </Pressable>
             </>
@@ -216,6 +230,7 @@ export default function TimetableScreen() {
                 onPress={() => {
                   setEditingPeriod(editingPeriod === row.period.label ? null : row.period.label);
                   setSubjectInput(row.subject ?? '');
+                  setExceptionError('');
                 }}
                 style={styles.lessonRow}>
                 <Text style={styles.time}>
@@ -238,7 +253,13 @@ export default function TimetableScreen() {
                   />
                   <View style={styles.row}>
                     <Pressable
-                      onPress={() => subjectInput.trim() && saveException(subjectInput.trim())}
+                      onPress={() => {
+                        if (!subjectInput.trim()) {
+                          setExceptionError('科目名を入力してください（休講にする場合は「休講にする」を押してください）');
+                          return;
+                        }
+                        saveException(subjectInput.trim());
+                      }}
                       style={styles.smallButton}>
                       <Text style={styles.smallButtonText}>変更を保存</Text>
                     </Pressable>
@@ -251,6 +272,7 @@ export default function TimetableScreen() {
                       </Pressable>
                     )}
                   </View>
+                  {exceptionError ? <Text style={styles.error}>{exceptionError}</Text> : null}
                 </View>
               )}
             </View>
@@ -271,14 +293,22 @@ export default function TimetableScreen() {
               <Text style={styles.noteDark}>
                 {e.date} {e.periodLabel}：{e.subject === null ? '休講' : e.subject}
               </Text>
-              <Pressable onPress={() => removeException(e.id)}>
+              <Pressable
+                hitSlop={8}
+                onPress={() => confirmAction('時間割変更を削除しますか？', `${e.date} ${e.periodLabel} の変更を取り消します。`, () => removeException(e.id))}>
                 <Text style={styles.smallButtonDanger}>削除</Text>
               </Pressable>
             </View>
           ))}
         </View>
       )}
-      <Text style={styles.heading}>ゼミの登録・変更</Text>
+      <View style={styles.rowBetween}>
+        <Text style={styles.heading}>ゼミの登録・変更</Text>
+        <Pressable hitSlop={8} onPress={() => setZemiOpen(!(zemiOpen ?? zemiItems.length === 0))}>
+          <Text style={styles.smallButtonText}>{(zemiOpen ?? zemiItems.length === 0) ? '閉じる' : '開く'}</Text>
+        </Pressable>
+      </View>
+      {(zemiOpen ?? zemiItems.length === 0) && (
       <View style={styles.card}>
         <Text style={styles.note}>
           自分のゼミを登録すると、その曜日の時間割とホームに表示されます。ゼミの時間は人によって違うため、自分の分を登録してください。
@@ -351,16 +381,19 @@ export default function TimetableScreen() {
               {z.place ? `（${z.place}）` : ''}
             </Text>
             <View style={styles.row}>
-              <Pressable onPress={() => editZemi(z)}>
+              <Pressable hitSlop={8} onPress={() => editZemi(z)}>
                 <Text style={styles.smallButtonText}>編集</Text>
               </Pressable>
-              <Pressable onPress={() => removeZemi(z.id)}>
+              <Pressable
+                hitSlop={8}
+                onPress={() => confirmAction('ゼミを削除しますか？', `「${z.name}」の登録を削除します。`, () => removeZemi(z.id))}>
                 <Text style={styles.smallButtonDanger}>削除</Text>
               </Pressable>
             </View>
           </View>
         ))}
       </View>
+      )}
 
       <Link href="/community" asChild>
         <Pressable style={styles.bottomLink}>
@@ -385,7 +418,7 @@ const styles = StyleSheet.create({
   segmentChip: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radius.pill, alignItems: 'center' },
   segmentChipActive: { backgroundColor: Colors.accent, shadowColor: Colors.accent, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   segmentText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
-  segmentTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  segmentTextActive: { color: Colors.white, fontWeight: '700' },
   emptyCard: { alignItems: 'center', paddingVertical: Spacing.xxl },
   emptyIcon: {
     width: 56,
@@ -421,7 +454,7 @@ const styles = StyleSheet.create({
   dayChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   dayChipText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
   dateChipText: { fontSize: FontSize.small, color: Colors.subText, fontWeight: '600' },
-  dayChipTextActive: { color: '#FFFFFF' },
+  dayChipTextActive: { color: Colors.white },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
@@ -450,16 +483,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: FontSize.body,
     color: Colors.text,
-    backgroundColor: Colors.subBackground,
+    backgroundColor: Colors.background,
   },
-  smallButton: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.card },
+  smallButton: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, backgroundColor: Colors.card },
   smallButtonText: { fontSize: FontSize.small, color: Colors.text },
   smallButtonDanger: { fontSize: FontSize.small, color: Colors.danger },
   formLabel: { fontSize: FontSize.small, color: Colors.subText },
   timeInput: { flex: 1 },
   error: { color: Colors.danger, fontSize: FontSize.small },
   primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center' },
-  primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
+  primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   ghostButton: { paddingVertical: Spacing.sm, alignItems: 'center' },
   ghostButtonText: { color: Colors.subText, fontSize: FontSize.body },
 });

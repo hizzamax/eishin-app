@@ -69,6 +69,8 @@ export async function restoreBackupCode(code: string): Promise<{ restoredKeys: n
     if (key in parsed.data) pairs.push([key, JSON.stringify(parsed.data[key])]);
   }
   if (pairs.length === 0) throw new Error('復元できるデータがありませんでした');
+  // 復元元に無いキーの現データが残らないよう、対象キーを一度すべて消してから書き込む
+  await AsyncStorage.multiRemove([...BACKUP_KEYS]);
   await AsyncStorage.multiSet(pairs);
   syncNotifications({}).catch(() => {});
   return { restoredKeys: pairs.length, exportedAt: parsed.exportedAt };

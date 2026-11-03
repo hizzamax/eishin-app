@@ -6,6 +6,7 @@ import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { EVENTS, type SchoolEvent } from '@/data/seed';
 import { isValidDateKey, useAssignments } from '@/lib/assignments';
 import { ATTENDANCE_LABEL, effectiveKind, useAttendance } from '@/lib/attendance';
+import { confirmAction } from '@/lib/confirm';
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
 import { toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
@@ -61,10 +62,10 @@ export default function CalendarScreen() {
   const selectedDate = useMemo(() => new Date(`${selectedKey}T00:00:00`), [selectedKey]);
   const selectedKind = effectiveKind(selectedDate, classDays, attendanceMap);
   const selectedEvents = [
-    ...EVENTS.filter((e) => e.date === selectedKey).map((e) => ({ title: e.title, time: e.time, place: e.place, chip: KIND_LABEL[e.kind] })),
+    ...EVENTS.filter((e) => e.date === selectedKey).map((e) => ({ title: e.title, time: e.time, place: e.place, chip: KIND_LABEL[e.kind], id: null as string | null })),
     ...personal
       .filter((e) => e.date === selectedKey)
-      .map((e) => ({ title: e.title, time: e.time, place: e.place, chip: '個人' })),
+      .map((e) => ({ title: e.title, time: e.time, place: e.place, chip: '個人', id: e.id as string | null })),
   ];
   const selectedAssignments = assignments.filter((a) => a.dueDate === selectedKey && a.status !== 'done');
   const [showForm, setShowForm] = useState(false);
@@ -180,6 +181,7 @@ export default function CalendarScreen() {
                   style={[
                     styles.cellDay,
                     isToday && !isSelected && styles.cellToday,
+                    isToday && !isSelected && styles.cellTodayBadge,
                     isSelected && styles.cellDaySelected,
                     isSchool && styles.cellSchool,
                   ]}>
@@ -187,13 +189,13 @@ export default function CalendarScreen() {
                 </Text>
                 <View style={styles.dotRow}>
                   {schoolEventDates.has(key) && (
-                    <View style={[styles.dot, { backgroundColor: isSelected ? '#FFFFFF' : Colors.blue }]} />
+                    <View style={[styles.dot, { backgroundColor: isSelected ? Colors.white : Colors.blue }]} />
                   )}
                   {personalDates.has(key) && (
-                    <View style={[styles.dot, { backgroundColor: isSelected ? '#FFFFFF' : Colors.success }]} />
+                    <View style={[styles.dot, { backgroundColor: isSelected ? Colors.white : Colors.success }]} />
                   )}
                   {dueDates.has(key) && (
-                    <View style={[styles.dot, { backgroundColor: isSelected ? '#FFFFFF' : Colors.danger }]} />
+                    <View style={[styles.dot, { backgroundColor: isSelected ? Colors.white : Colors.danger }]} />
                   )}
                 </View>
               </Pressable>
@@ -241,6 +243,13 @@ export default function CalendarScreen() {
                 {e.place ? ` ・ ${e.place}` : ''}
               </Text>
             </View>
+            {e.id && (
+              <Pressable
+                hitSlop={8}
+                onPress={() => confirmAction('予定を削除しますか？', `「${e.title}」を削除します。`, () => remove(e.id!))}>
+                <Text style={styles.deleteText}>削除</Text>
+              </Pressable>
+            )}
           </View>
         ))}
         {selectedAssignments.map((a) => (
@@ -251,13 +260,18 @@ export default function CalendarScreen() {
                 {a.subject ? `${a.subject}：` : ''}
                 {a.title}
               </Text>
-              <Text style={styles.note}>課題の期限（今日まで）</Text>
+              <Text style={styles.note}>課題の期限</Text>
             </View>
           </View>
         ))}
       </View>
 
-      <Pressable onPress={() => setShowForm(!showForm)} style={styles.addButton}>
+      <Pressable
+        onPress={() => {
+          if (!showForm) setDate(selectedKey);
+          setShowForm(!showForm);
+        }}
+        style={styles.addButton}>
         <Text style={styles.addButtonText}>{showForm ? '閉じる' : '＋ 自分の予定を追加'}</Text>
       </Pressable>
 
@@ -279,7 +293,7 @@ export default function CalendarScreen() {
       )}
 
       {events.length === 0 && <Text style={styles.note}>登録されている予定はありません。</Text>}
-      {events.map((event) => (
+      {events.slice(0, 8).map((event) => (
         <View key={event.key} style={styles.card}>
           <View style={styles.rowBetween}>
             <Text style={styles.date}>{dateLabel(event.date)}</Text>
@@ -309,13 +323,19 @@ export default function CalendarScreen() {
             </Text>
           )}
           {event.personalId && (
-            <Pressable onPress={() => remove(event.personalId!)}>
+            <Pressable
+              onPress={() =>
+                confirmAction('予定を削除しますか？', `「${event.title}」を削除します。`, () => remove(event.personalId!))
+              }>
               <Text style={styles.deleteText}>この予定を削除</Text>
             </Pressable>
           )}
         </View>
       ))}
-      <Text style={styles.footer}>「個人」の予定は自分の端末だけに保存され、自由に変更・削除できます。学校行事などの共通の予定は配布された内容が表示されます。</Text>
+      {events.length > 8 && (
+        <Text style={styles.note}>ほか {events.length - 8} 件の予定があります。上のカレンダーで日付を選ぶと、その日の予定が見られます。</Text>
+      )}
+      <Text style={styles.footer}>「個人」の予定はこの端末だけに保存されます。</Text>
     </ScrollView>
   );
 }
@@ -333,7 +353,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.dark,
   },
-  addButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '700' },
+  addButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '700' },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
@@ -351,6 +371,15 @@ const styles = StyleSheet.create({
   cellSelected: { backgroundColor: Colors.accent },
   cellDay: { fontSize: FontSize.small, color: Colors.text },
   cellToday: { color: Colors.accent, fontWeight: '700' },
+  cellTodayBadge: {
+    backgroundColor: Colors.accentSoft,
+    borderRadius: 999,
+    width: 26,
+    height: 26,
+    lineHeight: 26,
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
   cellSchool: { textDecorationLine: 'underline' },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 2, height: 6 },
   navCircle: {
@@ -364,9 +393,9 @@ const styles = StyleSheet.create({
   navArrow: { fontSize: 22, color: Colors.text, fontWeight: '600', lineHeight: 24 },
   todayPill: { backgroundColor: Colors.accentSoft, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, justifyContent: 'center' },
   todayPillText: { fontSize: FontSize.small, color: Colors.accent, fontWeight: '700' },
-  weekSun: { color: '#E5A3AC' },
+  weekSun: { color: Colors.sunday },
   weekSat: { color: Colors.blue },
-  cellDaySelected: { color: '#FFFFFF', fontWeight: '700' },
+  cellDaySelected: { color: Colors.white, fontWeight: '700' },
   legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: Spacing.xs },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   legendText: { fontSize: FontSize.caption, color: Colors.subText },
@@ -391,10 +420,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: FontSize.body,
     color: Colors.text,
-    backgroundColor: Colors.subBackground,
+    backgroundColor: Colors.background,
   },
   primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
+  primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   error: { color: Colors.danger, fontSize: FontSize.small },
   deleteText: { color: Colors.danger, fontSize: FontSize.small, marginTop: Spacing.xs },
   footer: { fontSize: FontSize.caption, color: Colors.subText, textAlign: 'center', marginTop: Spacing.md, lineHeight: 18 },

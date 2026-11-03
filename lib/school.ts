@@ -40,46 +40,9 @@ export function hasSampleSubjects(date: Date): boolean {
   return SAMPLE_SUBJECTS[weekdayLabel(date)] !== undefined;
 }
 
-function minutesOf(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-/** 現在時刻の時点で「次の授業」を返す。今日の分がなければ null。 */
-export function nextLesson(now: Date, classDays: WeekdayLabel[]): { row: LessonRow; inMinutes: number } | null {
-  const rows = lessonsFor(now, classDays);
-  if (!rows) return null;
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  for (const row of rows) {
-    const start = minutesOf(row.period.start);
-    if (start > nowMin) return { row, inMinutes: start - nowMin };
-  }
-  return null;
-}
-
-/** 今日以降でいちばん近い行事と、あと何日か。 */
-export function nextEvent(from: Date): { event: SchoolEvent; inDays: number } | null {
-  const todayKey = toDateKey(from);
-  const sorted = [...EVENTS].sort((a, b) => a.date.localeCompare(b.date));
-  for (const event of sorted) {
-    if (event.date >= todayKey) {
-      const target = new Date(`${event.date}T00:00:00`);
-      const base = new Date(`${todayKey}T00:00:00`);
-      const inDays = Math.round((target.getTime() - base.getTime()) / 86400000);
-      return { event, inDays };
-    }
-  }
-  return null;
-}
-
 export function upcomingEvents(from: Date): SchoolEvent[] {
   const todayKey = toDateKey(from);
   return [...EVENTS]
     .filter((e) => e.date >= todayKey)
     .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-export function eventDateLabel(event: SchoolEvent): string {
-  const d = new Date(`${event.date}T00:00:00`);
-  return `${d.getMonth() + 1}月${d.getDate()}日（${weekdayLabel(d)}）`;
 }

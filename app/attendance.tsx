@@ -1,3 +1,4 @@
+import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -7,6 +8,17 @@ import { useProfile } from '@/lib/profile';
 import { toDateKey } from '@/lib/school';
 
 const KINDS: AttendanceKind[] = ['school', 'home', 'off'];
+const KIND_ICON = {
+  school: { ios: 'building.2.fill', android: 'school', web: 'school' },
+  home: { ios: 'house.fill', android: 'home', web: 'home' },
+  off: { ios: 'moon.fill', android: 'bedtime', web: 'bedtime' },
+} as const satisfies Record<AttendanceKind, { ios: string; android: string; web: string }>;
+
+const KIND_COLOR: Record<AttendanceKind, string> = {
+  school: Colors.blue,
+  home: Colors.accent,
+  off: Colors.subText,
+};
 const DAYS_TO_SHOW = 14;
 
 export default function AttendanceScreen() {
@@ -26,35 +38,50 @@ export default function AttendanceScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.note}>
-        これからの14日間の登校予定です。タップで切り替えると保存されます（個人用の管理で、学校の正式な出席記録ではありません）。
-      </Text>
-      {days.map(({ key, date }) => {
-        const kind = effectiveKind(date, classDays, map);
-        const overridden = map[key] !== undefined;
-        return (
-          <View key={key} style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.dateText}>{dateLabel(key)}</Text>
-              {overridden && (
-                <Pressable onPress={() => setFor(key, null)}>
-                  <Text style={styles.reset}>既定に戻す</Text>
-                </Pressable>
-              )}
+      <Text style={styles.heading}>これからの14日間</Text>
+      <Text style={styles.note}>タップで切り替えると保存されます（学校の正式な出席記録ではありません）。</Text>
+      <View style={styles.card}>
+        {days.map(({ key, date }, idx) => {
+          const kind = effectiveKind(date, classDays, map);
+          const overridden = map[key] !== undefined;
+          return (
+            <View key={key} style={[styles.dayBlock, idx > 0 && styles.dayDivider]}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.dateText}>
+                  {dateLabel(key)}
+                  {idx === 0 ? <Text style={styles.todayText}> 今日</Text> : null}
+                </Text>
+                {overridden && (
+                  <Pressable onPress={() => setFor(key, null)} hitSlop={8}>
+                    <Text style={styles.reset}>既定に戻す</Text>
+                  </Pressable>
+                )}
+              </View>
+              <View style={styles.chipRow}>
+                {KINDS.map((k) => {
+                  const active = kind === k;
+                  const icon = KIND_ICON[k];
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => setFor(key, k)}
+                      style={[styles.chip, active && styles.chipActive]}>
+                      <SymbolView
+                        name={icon}
+                        tintColor={active ? Colors.white : KIND_COLOR[k]}
+                        size={15}
+                      />
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {ATTENDANCE_LABEL[k]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
-            <View style={styles.chipRow}>
-              {KINDS.map((k) => (
-                <Pressable
-                  key={k}
-                  onPress={() => setFor(key, k)}
-                  style={[styles.chip, kind === k && styles.chipActive]}>
-                  <Text style={[styles.chipText, kind === k && styles.chipTextActive]}>{ATTENDANCE_LABEL[k]}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </ScrollView>
   );
 }
@@ -62,6 +89,7 @@ export default function AttendanceScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.subBackground },
   content: { padding: Spacing.lg, gap: Spacing.md },
+  heading: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   card: {
     backgroundColor: Colors.card,
@@ -69,23 +97,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     padding: Spacing.lg,
-    gap: Spacing.sm,
     ...Shadow,
   },
+  dayBlock: { gap: Spacing.sm, paddingVertical: Spacing.md },
+  dayDivider: { borderTopWidth: 1, borderTopColor: Colors.border },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateText: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text },
+  todayText: { fontSize: FontSize.small, color: Colors.accent, fontWeight: '700' },
   reset: { fontSize: FontSize.small, color: Colors.accent },
   chipRow: { flexDirection: 'row', gap: Spacing.sm },
   chip: {
     flex: 1,
+    flexDirection: 'row',
+    minHeight: 38,
     paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
+    borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: Colors.card,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
-  chipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
-  chipText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
-  chipTextActive: { color: Colors.accent },
+  chipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  chipText: { fontSize: FontSize.small, color: Colors.subText, fontWeight: '600' },
+  chipTextActive: { color: Colors.white },
 });

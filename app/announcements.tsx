@@ -21,21 +21,20 @@ export default function AnnouncementsScreen() {
           </Pressable>
         )}
       </View>
-      <Text style={styles.note}>
-        アプリからのお知らせです。学校公式のお知らせではありません。未読 {unreadCount} 件（タップで既読になります）
-      </Text>
+      <Text style={styles.note}>未読 {unreadCount} 件（タップで既読になります）</Text>
 
       {items.map((a) => (
-        <Pressable key={a.id} onPress={() => markRead(a.id)} style={[styles.card, !a.read && styles.cardUnread]}>
+        <Pressable key={a.id} disabled={a.read} onPress={() => markRead(a.id)} style={[styles.card, !a.read && styles.cardUnread]}>
           <View style={styles.rowBetween}>
             <Text style={styles.date}>{dateLabel(a.date)}</Text>
-            {!a.read ? (
-              <View style={styles.unreadChip}>
-                <Text style={styles.unreadChipText}>未読</Text>
-              </View>
-            ) : a.important ? (
-              <Text style={styles.importantText}>重要</Text>
-            ) : null}
+            <View style={styles.chipRow}>
+              {a.important ? <Text style={styles.importantText}>重要</Text> : null}
+              {!a.read && (
+                <View style={styles.unreadChip}>
+                  <Text style={styles.unreadChipText}>未読</Text>
+                </View>
+              )}
+            </View>
           </View>
           <Text style={[styles.title, !a.read && styles.titleUnread]}>{a.title}</Text>
           <Text style={styles.body}>{a.body}</Text>
@@ -54,6 +53,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, gap: Spacing.md },
   heading: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  chipRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   linkText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   card: {
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   cardUnread: { borderColor: Colors.accent },
   date: { fontSize: FontSize.small, color: Colors.subText },
   unreadChip: { backgroundColor: Colors.accent, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
-  unreadChipText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
+  unreadChipText: { fontSize: FontSize.caption, color: Colors.white, fontWeight: '700' },
   importantText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
   title: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text },
   titleUnread: { fontWeight: '700' },

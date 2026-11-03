@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { newId } from '@/lib/assignments';
 import { notifyNow, syncNotifications } from '@/lib/notifications';
-import { toDateKey, type LessonRow } from '@/lib/school';
+import { toDateKey, weekdayLabel, type LessonRow } from '@/lib/school';
 
 /**
  * 特定の日だけの時間割変更（例外）。
@@ -63,18 +64,22 @@ export function useExceptions() {
   const [items, setItems] = useState<TimetableException[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const reload = useCallback(() => {
     loadAll().then((list) => {
-      if (alive) {
-        setItems(list);
-        setLoaded(true);
-      }
+      setItems(list);
+      setLoaded(true);
     });
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const persist = useCallback((next: TimetableException[]) => {
     setItems(next);
@@ -93,9 +98,10 @@ export function useExceptions() {
         persist([...items, { ...draft, id: newId() }]);
       }
       // 時間割変更の通知（その場で1件）。通知が無効・未対応環境では何も起きない。
+      const exDate = new Date(`${draft.date}T00:00:00`);
       notifyNow(
         '時間割変更を登録しました',
-        `${draft.date} ${draft.periodLabel}：${draft.subject === null ? '休講' : draft.subject}`,
+        `${exDate.getMonth() + 1}月${exDate.getDate()}日（${weekdayLabel(exDate)}） ${draft.periodLabel}：${draft.subject === null ? '休講' : draft.subject}`,
       ).catch(() => {});
     },
     [items, persist],

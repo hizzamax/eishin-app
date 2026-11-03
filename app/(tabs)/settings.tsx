@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
-import { Link } from 'expo-router';
-import { useEffect, useState } from 'react';
+import Constants from 'expo-constants';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createBackupCode } from '@/lib/backup';
@@ -29,6 +30,8 @@ function lettersForGrade(grade: string): string[] {
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [notifNote, setNotifNote] = useState('');
   const expoGo = !notificationsRuntimeSupported();
@@ -37,6 +40,15 @@ export default function SettingsScreen() {
     loadProfile().then(setProfile);
     loadNotifSettings().then((s) => setNotifEnabled(s.enabled));
   }, []);
+
+  // 復元などで他画面からデータが変わった場合、未編集なら開き直したときに読み直す
+  useFocusEffect(
+    useCallback(() => {
+      if (dirtyRef.current) return;
+      loadProfile().then(setProfile);
+      loadNotifSettings().then((s) => setNotifEnabled(s.enabled));
+    }, []),
+  );
 
   const toggleNotif = async () => {
     const next = !notifEnabled;
@@ -94,7 +106,7 @@ export default function SettingsScreen() {
   }
 
   const toggleDay = (day: WeekdayLabel) => {
-    setSaved(false);
+    setSaved(false); setDirty(true); dirtyRef.current = true;
     setProfile((p) =>
       p
         ? {
@@ -110,6 +122,8 @@ export default function SettingsScreen() {
   const onSave = async () => {
     await saveProfile(profile);
     setSaved(true);
+    setDirty(false);
+    dirtyRef.current = false;
   };
 
   return (
@@ -126,7 +140,7 @@ export default function SettingsScreen() {
           style={styles.input}
           value={profile.name}
           onChangeText={(name) => {
-            setSaved(false);
+            setSaved(false); setDirty(true); dirtyRef.current = true;
             setProfile({ ...profile, name });
           }}
           placeholder="未設定"
@@ -138,13 +152,13 @@ export default function SettingsScreen() {
           const grade = m?.[1];
           const letter = m?.[2];
           const setGrade = (g: string) => {
-            setSaved(false);
+            setSaved(false); setDirty(true); dirtyRef.current = true;
             const nextLetter = letter && lettersForGrade(g).includes(letter) ? letter : 'A';
             setProfile({ ...profile, className: `${g}-${nextLetter}` });
           };
           const setLetter = (l: string) => {
             if (!grade) return;
-            setSaved(false);
+            setSaved(false); setDirty(true); dirtyRef.current = true;
             setProfile({ ...profile, className: `${grade}-${l}` });
           };
           return (
@@ -194,7 +208,7 @@ export default function SettingsScreen() {
               <Pressable
                 key={c}
                 onPress={() => {
-                  setSaved(false);
+                  setSaved(false); setDirty(true); dirtyRef.current = true;
                   setProfile({ ...profile, course: c });
                 }}
                 style={[styles.optionChip, active && styles.dayChipActive]}>
@@ -220,6 +234,7 @@ export default function SettingsScreen() {
         <Pressable onPress={onSave} style={styles.saveButton}>
           <Text style={styles.saveButtonText}>{saved ? '保存しました' : '保存する'}</Text>
         </Pressable>
+        {dirty && !saved ? <Text style={styles.note}>未保存の変更があります</Text> : null}
       </View>
 
       <View style={styles.card}>
@@ -230,7 +245,7 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>通知</Text>
         </View>
         <Text style={styles.note}>
-          課題の期限（前日20時・当日8時）、行事・予定（前日18時）、時間割変更（前日20時と登録時）を、この端末のローカル通知で知らせます。
+          課題（前日20時・当日8時）、行事と予定（前日18時）、時間割変更（前日20時）を、この端末の通知で知らせます。
         </Text>
         <View style={styles.rowBetween}>
           <Text style={styles.bodyText}>通知を受け取る</Text>
@@ -261,21 +276,21 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>コミュニティ・データ</Text>
         </View>
         <Link href="/community" asChild>
-          <Pressable style={styles.rowBetween}>
+          <Pressable style={[styles.rowBetween, styles.listRow]}>
             <Text style={styles.bodyText}>コミュニティ（みんなの掲示板）</Text>
-            <Text style={styles.linkText}>開く</Text>
+            <Text style={styles.linkText}>›</Text>
           </Pressable>
         </Link>
         <Link href="/import" asChild>
-          <Pressable style={styles.rowBetween}>
+          <Pressable style={[styles.rowBetween, styles.listRow]}>
             <Text style={styles.bodyText}>データの取り込み（ICS・CSV）</Text>
-            <Text style={styles.linkText}>開く</Text>
+            <Text style={styles.linkText}>›</Text>
           </Pressable>
         </Link>
         <Link href="/announcements" asChild>
-          <Pressable style={styles.rowBetween}>
+          <Pressable style={[styles.rowBetween, styles.listRow]}>
             <Text style={styles.bodyText}>お知らせ</Text>
-            <Text style={styles.linkText}>開く</Text>
+            <Text style={styles.linkText}>›</Text>
           </Pressable>
         </Link>
       </View>
@@ -303,7 +318,7 @@ export default function SettingsScreen() {
           </View>
           <Text style={styles.cardTitle}>アプリ情報</Text>
         </View>
-        <Text style={styles.note}>英心アプリ（非公式） バージョン 1.0.0</Text>
+        <Text style={styles.note}>英心アプリ（非公式） バージョン {Constants.expoConfig?.version ?? '1.0.0'}</Text>
         <Text style={styles.note}>
           このアプリは生徒有志による非公式アプリです。学校公式のものではなく、学校との提携・公式認定を受けたものではありません。
         </Text>
@@ -344,7 +359,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: FontSize.body,
     color: Colors.text,
-    backgroundColor: Colors.subBackground,
+    backgroundColor: Colors.background,
   },
   dayRow: { flexDirection: 'row', gap: Spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
@@ -368,7 +383,7 @@ const styles = StyleSheet.create({
   },
   dayChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   dayChipText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
-  dayChipTextActive: { color: '#FFFFFF' },
+  dayChipTextActive: { color: Colors.white },
   saveButton: {
     backgroundColor: Colors.dark,
     borderRadius: Radius.pill,
@@ -376,10 +391,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.md,
   },
-  saveButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
+  saveButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   bodyText: { fontSize: FontSize.body, color: Colors.text },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  listRow: { paddingVertical: Spacing.sm },
   toggleChip: { flex: 0, paddingHorizontal: Spacing.lg },
   linkText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
   ghostButton: { paddingVertical: Spacing.xs },

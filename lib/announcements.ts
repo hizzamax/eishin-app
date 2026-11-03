@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 /**
@@ -17,6 +18,12 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    id: 'review-fixes-20261103',
+    date: '2026-11-03',
+    title: '掲示板と全体の使い勝手を改善しました',
+    body: '掲示板は投稿一覧が見やすいレイアウトに変わり、種類で絞り込めるようになりました。あわせて課題・カレンダー・登校予定など各画面の細部も見直し、他の画面で変更した内容がタブを開き直したときに反映されるようになりました。',
+  },
+  {
     id: 'design-refresh',
     date: '2026-11-03',
     title: 'デザインを新しくしました',
@@ -32,7 +39,7 @@ export const ANNOUNCEMENTS: Announcement[] = [
     id: 'phase4-update',
     date: '2026-11-03',
     title: 'コミュニティとファイル取り込みに対応しました',
-    body: 'フェーズ4として、ICS・CSVファイルからの予定の取り込み（確認画面と履歴つき）と、コミュニティ（みんなの掲示板）を追加しました。共有はQRコード方式から掲示板方式に変わります。掲示板が全員に公開されるにはサーバーの準備が必要で、それまではこの端末内だけの表示です。',
+    body: 'フェーズ4として、ICS・CSVファイルからの予定の取り込み（確認画面と履歴つき）と、コミュニティ（みんなの掲示板）を追加しました。時間割の共有は掲示板経由です。掲示板が全員に公開されるにはサーバーの準備が必要で、それまではこの端末内だけの表示です。',
     important: true,
   },
   {
@@ -46,7 +53,7 @@ export const ANNOUNCEMENTS: Announcement[] = [
     id: 'phase3-update',
     date: '2026-11-03',
     title: '通知と時間割の共有に対応しました',
-    body: 'フェーズ3として、課題の期限・行事・時間割変更を知らせるローカル通知と、QRコード／コードによる時間割の共有に対応しました。通知は設定タブから有効にできます（通知が実際に届くのは開発ビルド／製品版のみで、Expo Goでは動作しません）。',
+    body: 'フェーズ3として、課題の期限・行事・時間割変更を知らせるローカル通知に対応しました。時間割の共有は、フェーズ4でコミュニティ（掲示板）経由になりました。通知は設定タブから有効にできます（通知が実際に届くのは開発ビルド／製品版のみで、Expo Goでは動作しません）。',
     important: true,
   },
   {
@@ -76,18 +83,22 @@ export function useAnnouncements() {
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const reload = useCallback(() => {
     loadReadIds().then((ids) => {
-      if (alive) {
-        setReadIds(ids);
-        setLoaded(true);
-      }
+      setReadIds(ids);
+      setLoaded(true);
     });
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const persist = useCallback((next: string[]) => {
     setReadIds(next);

@@ -1,10 +1,8 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
 import { setupNotificationHandler, syncNotifications } from '@/lib/notifications';
 
 export {
@@ -13,7 +11,7 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
+  // 初期表示はタブ側に固定する
   anchor: '(tabs)',
 };
 
@@ -21,42 +19,23 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
   // ローカル通知：ハンドラ設定と、保存済みデータに合わせた予約の組み直し（起動時）
   useEffect(() => {
     setupNotificationHandler();
     syncNotifications({}).catch(() => {});
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
 
   return <RootLayoutNav />;
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    // アプリ本体は白基調トークン固定のため、ナビゲーションもライトテーマに固定する
+    // （ダークモード対応時にここを切り替える）
+    <ThemeProvider value={DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="assignments" options={{ title: '課題' }} />
         <Stack.Screen name="attendance" options={{ title: '登校予定' }} />
         <Stack.Screen name="announcements" options={{ title: 'お知らせ' }} />

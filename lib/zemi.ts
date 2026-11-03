@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { WeekdayLabel } from '@/data/seed';
@@ -55,18 +56,22 @@ export function useZemi() {
   const [items, setItems] = useState<ZemiEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const reload = useCallback(() => {
     loadAll().then((list) => {
-      if (alive) {
-        setItems(list);
-        setLoaded(true);
-      }
+      setItems(list);
+      setLoaded(true);
     });
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   const persist = useCallback((next: ZemiEntry[]) => {
     setItems(next);

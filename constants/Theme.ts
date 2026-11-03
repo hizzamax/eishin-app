@@ -21,6 +21,9 @@ export const Colors = {
   dangerSoft: '#FDECEC',
   success: '#2E9E6B',
   successSoft: '#E7F5EE',
+  white: '#FFFFFF',
+  sunday: '#D97B8C',
+  tabInactive: '#B9B9B9',
 } as const;
 
 /** ヒーローカード用グラデーション（コーラル→ピーチ） */

@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link } from 'expo-router';
-import { useMemo } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, FontSize, HeroGradient, HeroShadow, Radius, Shadow, Spacing } from '@/constants/Theme';
@@ -50,7 +50,13 @@ export default function HomeScreen() {
   const latestAnnouncement = announcementItems[0];
   const { map: subjectsMap } = useSubjects();
 
-  const now = useMemo(() => new Date(), []);
+  const [now, setNow] = useState(() => new Date());
+  // 画面に戻ってきたら現在時刻を取り直す（開きっぱなしで古くならないように）
+  useFocusEffect(
+    useCallback(() => {
+      setNow(new Date());
+    }, []),
+  );
   const classDays = profile?.classDays ?? ['月', '水', '金'];
   const kind = effectiveKind(now, classDays, attendanceMap);
 
@@ -76,7 +82,18 @@ export default function HomeScreen() {
     const personal = personalEvents
       .filter((e) => e.date >= todayKey)
       .map((e) => ({ date: e.date, time: e.time, title: e.title, place: e.place }));
-    const all = [...school, ...personal].sort((a, b) => a.date.localeCompare(b.date));
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const isPastToday = (e: { date: string; time: string }) => {
+      if (e.date !== todayKey || !e.time) return false;
+      const range = e.time.match(/(\d{1,2}):(\d{2})\s*[-–〜~]\s*(\d{1,2}):(\d{2})/);
+      if (range) return Number(range[3]) * 60 + Number(range[4]) <= nowMin;
+      const single = e.time.match(/(\d{1,2}):(\d{2})/);
+      if (single) return Number(single[1]) * 60 + Number(single[2]) <= nowMin;
+      return false;
+    };
+    const all = [...school, ...personal]
+      .filter((e) => !isPastToday(e))
+      .sort((a, b) => a.date.localeCompare(b.date));
     if (all.length === 0) return null;
     const first = all[0];
     const target = new Date(`${first.date}T00:00:00`);
@@ -92,14 +109,14 @@ export default function HomeScreen() {
         : '今日の授業は終わりました'
       : nextSchoolDay
         ? `次の登校日は ${nextSchoolDay.getMonth() + 1}月${nextSchoolDay.getDate()}日（${weekdayLabel(nextSchoolDay)}）`
-        : 'しばらく登校日はありません';
+        : '直近14日間に登校日はありません';
   const heroSub =
     kind === 'school'
       ? upcoming
         ? `${upcoming.row.period.label} ${upcoming.row.period.start}〜 ・ あと${upcoming.inMinutes}分`
         : 'おつかれさまでした'
       : kind === 'home'
-        ? '登校予定で変更した内容が反映されています'
+        ? '今日は自宅学習の日です'
         : FREE_DAYS_NOTE;
 
   return (
@@ -149,10 +166,10 @@ export default function HomeScreen() {
             <Text style={styles.quickLabel}>登校予定</Text>
           </Pressable>
         </Link>
-        <Link href="/community" asChild>
+        <Link href="/announcements" asChild>
           <Pressable style={styles.quickItem}>
-            <SymbolView name={{ ios: 'person.3.fill', android: 'groups', web: 'groups' }} tintColor={Colors.accent} size={22} />
-            <Text style={styles.quickLabel}>掲示板</Text>
+            <SymbolView name={{ ios: 'bell.fill', android: 'notifications', web: 'notifications' }} tintColor={Colors.accent} size={22} />
+            <Text style={styles.quickLabel}>お知らせ</Text>
           </Pressable>
         </Link>
         <Link href="/import" asChild>
@@ -180,7 +197,7 @@ export default function HomeScreen() {
                   <Text style={styles.lessonSubject}>
                     {row.changed && row.subject === null
                       ? '休講'
-                      : (row.subject ?? (row.period.label === 'HR' ? 'HR' : '未設定'))}
+                      : (row.subject ?? (row.period.label === 'HR' ? 'ホームルーム' : '未設定'))}
                   </Text>
                   <Text style={styles.lessonMeta}>
                     {row.period.label} ・ {row.period.start}–{row.period.end}
@@ -236,8 +253,8 @@ export default function HomeScreen() {
                 {a.subject ? `${a.subject}：` : ''}
                 {a.title}
               </Text>
-              <View style={[styles.duePill, d < 0 && styles.duePillOverdue]}>
-                <Text style={[styles.duePillText, d < 0 && styles.duePillTextOverdue]}>
+              <View style={[styles.duePill, d <= 0 && styles.duePillOverdue]}>
+                <Text style={[styles.duePillText, d <= 0 && styles.duePillTextOverdue]}>
                   {d < 0 ? `${-d}日超過` : d === 0 ? '今日まで' : `あと${d}日`}
                 </Text>
               </View>
@@ -257,7 +274,10 @@ export default function HomeScreen() {
           <Text style={styles.cardTitle}>直近の時間割変更</Text>
           {nearExceptions.map((e) => (
             <Text key={e.id} style={styles.note}>
-              {e.date} {e.periodLabel}：{e.subject === null ? '休講' : e.subject}
+              {(() => {
+                const d = new Date(`${e.date}T00:00:00`);
+                return `${d.getMonth() + 1}月${d.getDate()}日（${weekdayLabel(d)}）`;
+              })()} {e.periodLabel}：{e.subject === null ? '休講' : e.subject}
               {e.note ? `（${e.note}）` : ''}
             </Text>
           ))}
@@ -300,7 +320,6 @@ export default function HomeScreen() {
             )}
           </View>
           <Text style={styles.eventTitle}>{latestAnnouncement.title}</Text>
-          <Text style={styles.note}>アプリからのお知らせです（学校公式ではありません）</Text>
           <Link href="/announcements" asChild>
             <Pressable style={styles.linkButton}>
               <Text style={styles.linkButtonText}>お知らせを見る</Text>
@@ -353,12 +372,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
   },
-  heroPillText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
-  heroMain: { fontSize: FontSize.title, fontWeight: '700', color: '#FFFFFF', lineHeight: 30 },
+  heroPillText: { fontSize: FontSize.caption, color: Colors.white, fontWeight: '700' },
+  heroMain: { fontSize: FontSize.title, fontWeight: '700', color: Colors.white, lineHeight: 30 },
   heroSub: { fontSize: FontSize.small, color: 'rgba(255,255,255,0.92)' },
   heroButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.white,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
@@ -424,11 +443,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.xs,
   },
-  darkButtonText: { fontSize: FontSize.body, color: '#FFFFFF', fontWeight: '700' },
+  darkButtonText: { fontSize: FontSize.body, color: Colors.white, fontWeight: '700' },
   linkButton: { marginTop: Spacing.xs },
   linkButtonText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '700' },
   unreadChip: { backgroundColor: Colors.accent, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: 3 },
-  unreadChipText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
+  unreadChipText: { fontSize: FontSize.caption, color: Colors.white, fontWeight: '700' },
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
   countBox: {
     backgroundColor: Colors.accentSoft,

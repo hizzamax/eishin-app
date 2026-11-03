@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { WeekdayLabel } from '@/data/seed';
@@ -29,11 +30,9 @@ export function useAttendance() {
   const [map, setMap] = useState<AttendanceMap>({});
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
+  const reload = useCallback(() => {
     AsyncStorage.getItem(KEY)
       .then((raw) => {
-        if (!alive) return;
         if (raw) {
           try {
             const parsed = JSON.parse(raw);
@@ -44,13 +43,18 @@ export function useAttendance() {
         }
         setLoaded(true);
       })
-      .catch(() => {
-        if (alive) setLoaded(true);
-      });
-    return () => {
-      alive = false;
-    };
+      .catch(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   /** kind=null で上書きを消す */
   const setFor = useCallback(
