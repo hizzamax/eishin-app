@@ -11,6 +11,7 @@ import { applyExceptions, upcomingExceptions, useExceptions, type AppliedRow } f
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
 import { formatDate, hasSampleSubjects, lessonsFor, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
+import { useZemi, zemiFor } from '@/lib/zemi';
 
 function minutesOf(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
@@ -33,6 +34,7 @@ export default function HomeScreen() {
   const { map: attendanceMap } = useAttendance();
   const { items: exceptions } = useExceptions();
   const { items: personalEvents } = usePersonalEvents();
+  const { items: zemiItems } = useZemi();
 
   const now = useMemo(() => new Date(), []);
   const classDays = profile?.classDays ?? ['月', '水', '金'];
@@ -44,6 +46,7 @@ export default function HomeScreen() {
 
   const urgent = urgentAssignments(assignments, 3);
   const nearExceptions = upcomingExceptions(exceptions, now).slice(0, 3);
+  const todayZemi = zemiFor(now, zemiItems);
 
   const nextEv = useMemo(() => {
     const todayKey = toDateKey(now);
@@ -105,6 +108,21 @@ export default function HomeScreen() {
           </Pressable>
         </Link>
       </View>
+
+      {todayZemi.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>今日のゼミ</Text>
+          {todayZemi.map((z) => (
+            <View key={z.id} style={styles.lessonRow}>
+              <Text style={styles.lessonTime}>
+                {z.start}–{z.end}
+              </Text>
+              <Text style={styles.lessonSubject}>{z.name}</Text>
+              {z.place ? <Text style={styles.note}>{z.place}</Text> : null}
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>期限が近い課題</Text>

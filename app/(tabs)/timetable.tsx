@@ -6,6 +6,7 @@ import { FREE_DAYS_NOTE, PERIODS, SAMPLE_SUBJECTS, WEEKDAYS, type WeekdayLabel }
 import { applyExceptions, upcomingExceptions, useExceptions } from '@/lib/exceptions';
 import { useProfile } from '@/lib/profile';
 import { lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
+import { useZemi, zemiForWeekday, type ZemiEntry } from '@/lib/zemi';
 
 const DAY_TABS: WeekdayLabel[] = ['月', '火', '水', '木', '金', '土'];
 
@@ -36,6 +37,36 @@ export default function TimetableScreen() {
   const [editingPeriod, setEditingPeriod] = useState<string | null>(null);
   const [subjectInput, setSubjectInput] = useState('');
   const nearExceptions = upcomingExceptions(exceptions, new Date());
+
+  // --- ゼミ ---
+  const { items: zemiItems, add: addZemi, update: updateZemi, remove: removeZemi } = useZemi();
+  const selectedZemi = zemiForWeekday(selected, zemiItems);
+  const [zemiDraft, setZemiDraft] = useState({ name: '', weekday: '火' as WeekdayLabel, start: '', end: '', place: '' });
+  const [editingZemiId, setEditingZemiId] = useState<string | null>(null);
+  const [zemiError, setZemiError] = useState('');
+
+  const submitZemi = () => {
+    if (!zemiDraft.name.trim()) {
+      setZemiError('ゼミ名を入力してください');
+      return;
+    }
+    if (!/^\d{1,2}:\d{2}$/.test(zemiDraft.start) || !/^\d{1,2}:\d{2}$/.test(zemiDraft.end)) {
+      setZemiError('時間は 15:00 の形式で入力してください');
+      return;
+    }
+    const draft = { ...zemiDraft, name: zemiDraft.name.trim() };
+    if (editingZemiId) updateZemi(editingZemiId, draft);
+    else addZemi(draft);
+    setZemiDraft({ name: '', weekday: '火', start: '', end: '', place: '' });
+    setEditingZemiId(null);
+    setZemiError('');
+  };
+
+  const editZemi = (z: ZemiEntry) => {
+    setEditingZemiId(z.id);
+    setZemiDraft({ name: z.name, weekday: z.weekday, start: z.start, end: z.end, place: z.place });
+    setZemiError('');
+  };
 
   const saveException = (subject: string | null) => {
     if (!editingPeriod) return;
@@ -87,6 +118,21 @@ export default function TimetableScreen() {
           ) : (
             <Text style={styles.note}>この曜日の科目はまだ登録されていません。</Text>
           )}
+        </View>
+      )}
+
+      {selectedZemi.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{selected}曜日のゼミ</Text>
+          {selectedZemi.map((z) => (
+            <View key={z.id} style={styles.row}>
+              <Text style={styles.time}>
+                {z.start}–{z.end}
+              </Text>
+              <Text style={styles.subject}>{z.name}</Text>
+              {z.place ? <Text style={styles.note}>{z.place}</Text> : null}
+            </View>
+          ))}
         </View>
       )}
 
@@ -178,6 +224,89 @@ export default function TimetableScreen() {
           ))}
         </View>
       )}
+      <Text style={styles.heading}>ゼミの登録・変更</Text>
+      <View style={styles.card}>
+        <Text style={styles.note}>
+          自分のゼミを登録すると、その曜日の時間割とホームに表示されます。ゼミの時間は人によって違うため、自分の分を登録してください。
+        </Text>
+        <Text style={styles.formLabel}>ゼミ名 *</Text>
+        <TextInput
+          style={styles.input}
+          value={zemiDraft.name}
+          onChangeText={(name) => setZemiDraft({ ...zemiDraft, name })}
+          placeholder="例：文芸ゼミ"
+          placeholderTextColor={Colors.subText}
+        />
+        <Text style={styles.formLabel}>曜日</Text>
+        <View style={styles.dayRow}>
+          {DAY_TABS.map((day) => (
+            <Pressable
+              key={day}
+              onPress={() => setZemiDraft({ ...zemiDraft, weekday: day })}
+              style={[styles.dayChip, zemiDraft.weekday === day && styles.dayChipActive]}>
+              <Text style={[styles.dayChipText, zemiDraft.weekday === day && styles.dayChipTextActive]}>{day}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, styles.timeInput]}
+            value={zemiDraft.start}
+            onChangeText={(start) => setZemiDraft({ ...zemiDraft, start })}
+            placeholder="開始 15:00"
+            placeholderTextColor={Colors.subText}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={[styles.input, styles.timeInput]}
+            value={zemiDraft.end}
+            onChangeText={(end) => setZemiDraft({ ...zemiDraft, end })}
+            placeholder="終了 16:00"
+            placeholderTextColor={Colors.subText}
+            autoCapitalize="none"
+          />
+        </View>
+        <Text style={styles.formLabel}>場所（任意）</Text>
+        <TextInput
+          style={styles.input}
+          value={zemiDraft.place}
+          onChangeText={(place) => setZemiDraft({ ...zemiDraft, place })}
+          placeholder="例：2-B教室"
+          placeholderTextColor={Colors.subText}
+        />
+        {zemiError ? <Text style={styles.error}>{zemiError}</Text> : null}
+        <Pressable onPress={submitZemi} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>{editingZemiId ? 'ゼミを更新する' : 'ゼミを登録する'}</Text>
+        </Pressable>
+        {editingZemiId && (
+          <Pressable
+            onPress={() => {
+              setEditingZemiId(null);
+              setZemiDraft({ name: '', weekday: '火', start: '', end: '', place: '' });
+              setZemiError('');
+            }}
+            style={styles.ghostButton}>
+            <Text style={styles.ghostButtonText}>編集をやめる</Text>
+          </Pressable>
+        )}
+        {zemiItems.length > 0 && <Text style={styles.formLabel}>登録済みのゼミ</Text>}
+        {zemiItems.map((z) => (
+          <View key={z.id} style={styles.rowBetween}>
+            <Text style={styles.noteDark}>
+              {z.weekday} {z.start}–{z.end} {z.name}
+              {z.place ? `（${z.place}）` : ''}
+            </Text>
+            <View style={styles.row}>
+              <Pressable onPress={() => editZemi(z)}>
+                <Text style={styles.smallButtonText}>編集</Text>
+              </Pressable>
+              <Pressable onPress={() => removeZemi(z.id)}>
+                <Text style={styles.smallButtonDanger}>削除</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -241,4 +370,11 @@ const styles = StyleSheet.create({
   smallButton: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },
   smallButtonText: { fontSize: FontSize.small, color: Colors.text },
   smallButtonDanger: { fontSize: FontSize.small, color: Colors.danger },
+  formLabel: { fontSize: FontSize.small, color: Colors.subText },
+  timeInput: { flex: 1 },
+  error: { color: Colors.danger, fontSize: FontSize.small },
+  primaryButton: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center' },
+  primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
+  ghostButton: { paddingVertical: Spacing.sm, alignItems: 'center' },
+  ghostButtonText: { color: Colors.subText, fontSize: FontSize.body },
 });
