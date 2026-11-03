@@ -17,6 +17,14 @@ import {
 } from '@/lib/notifications';
 import { loadProfile, saveProfile, type Profile } from '@/lib/profile';
 
+const GRADES = ['1', '2', '3'] as const;
+const COURSES = ['探究コース', '集中スクーリング'] as const;
+
+function lettersForGrade(grade: string): string[] {
+  // 1年はC組まで、2・3年はB組まで
+  return grade === '1' ? ['A', 'B', 'C'] : ['A', 'B'];
+}
+
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState(false);
@@ -118,28 +126,77 @@ export default function SettingsScreen() {
           placeholder="未設定"
           placeholderTextColor={Colors.subText}
         />
-        <Text style={styles.label}>クラス</Text>
-        <TextInput
-          style={styles.input}
-          value={profile.className}
-          onChangeText={(className) => {
+        <Text style={styles.label}>クラス（学年・組を選んでください）</Text>
+        {(() => {
+          const m = profile.className.match(/^([1-3])-([A-C])$/);
+          const grade = m?.[1];
+          const letter = m?.[2];
+          const setGrade = (g: string) => {
             setSaved(false);
-            setProfile({ ...profile, className });
-          }}
-          placeholder="例：3-A"
-          placeholderTextColor={Colors.subText}
-        />
+            const nextLetter = letter && lettersForGrade(g).includes(letter) ? letter : 'A';
+            setProfile({ ...profile, className: `${g}-${nextLetter}` });
+          };
+          const setLetter = (l: string) => {
+            if (!grade) return;
+            setSaved(false);
+            setProfile({ ...profile, className: `${grade}-${l}` });
+          };
+          return (
+            <>
+              <View style={styles.chipRow}>
+                {GRADES.map((g) => {
+                  const active = grade === g;
+                  return (
+                    <Pressable
+                      key={g}
+                      onPress={() => setGrade(g)}
+                      style={[styles.optionChip, active && styles.dayChipActive]}>
+                      <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{g}年</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.chipRow}>
+                {(grade ? lettersForGrade(grade) : ['A', 'B', 'C']).map((l) => {
+                  const active = letter === l;
+                  return (
+                    <Pressable
+                      key={l}
+                      onPress={() => setLetter(l)}
+                      style={[styles.optionChip, active && styles.dayChipActive]}>
+                      <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{l}組</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {!grade && (
+                <Text style={styles.note}>
+                  現在の設定「{profile.className || '未設定'}」は一覧にない形式です。学年と組を選ぶと置き換わります。
+                </Text>
+              )}
+            </>
+          );
+        })()}
         <Text style={styles.label}>コース</Text>
-        <TextInput
-          style={styles.input}
-          value={profile.course}
-          onChangeText={(course) => {
-            setSaved(false);
-            setProfile({ ...profile, course });
-          }}
-          placeholder="例：探究コース"
-          placeholderTextColor={Colors.subText}
-        />
+        <View style={styles.chipRow}>
+          {(COURSES.includes(profile.course as (typeof COURSES)[number]) || !profile.course
+            ? [...COURSES]
+            : [profile.course, ...COURSES]
+          ).map((c) => {
+            const active = profile.course === c;
+            return (
+              <Pressable
+                key={c}
+                onPress={() => {
+                  setSaved(false);
+                  setProfile({ ...profile, course: c });
+                }}
+                style={[styles.optionChip, active && styles.dayChipActive]}>
+                <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>{c}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <Text style={styles.label}>授業がある曜日</Text>
         <View style={styles.dayRow}>
           {ALL_CLASS_DAY_CANDIDATES.map((day) => {
@@ -255,6 +312,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   dayRow: { flexDirection: 'row', gap: Spacing.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  optionChip: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+  },
   dayChip: {
     flex: 1,
     paddingVertical: Spacing.sm,
