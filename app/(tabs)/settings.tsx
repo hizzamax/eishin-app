@@ -84,6 +84,7 @@ export default function SettingsScreen() {
   };
 
   const [backupNote, setBackupNote] = useState('');
+  const [saveError, setSaveError] = useState('');
   const [backupCode, setBackupCode] = useState('');
   const onBackup = async () => {
     try {
@@ -145,7 +146,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const [saveError, setSaveError] = useState('');
   const onSave = async () => {
     if (profile.classDays.length === 0) {
       setSaveError('授業がある曜日を1日以上選んでください');
