@@ -84,11 +84,18 @@ export default function CalendarScreen() {
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.rowBetween}>
         <Text style={styles.heading}>これからの予定</Text>
-        <Link href="/attendance" asChild>
-          <Pressable>
-            <Text style={styles.linkText}>登校予定</Text>
-          </Pressable>
-        </Link>
+        <View style={styles.rowGap}>
+          <Link href="/import" asChild>
+            <Pressable>
+              <Text style={styles.linkText}>取り込み</Text>
+            </Pressable>
+          </Link>
+          <Link href="/attendance" asChild>
+            <Pressable>
+              <Text style={styles.linkText}>登校予定</Text>
+            </Pressable>
+          </Link>
+        </View>
       </View>
 
       <Pressable onPress={() => setShowForm(!showForm)} style={styles.addButton}>
@@ -146,6 +153,7 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, gap: Spacing.md },
   heading: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rowGap: { flexDirection: 'row', gap: Spacing.md },
   linkText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
   addButton: {
     borderWidth: 1,

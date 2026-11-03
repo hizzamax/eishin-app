@@ -84,9 +84,9 @@ export default function TimetableScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Link href="/share" asChild>
+      <Link href="/community" asChild>
         <Pressable style={styles.shareButton}>
-          <Text style={styles.shareButtonText}>時間割を共有・取り込む（QR・コード）</Text>
+          <Text style={styles.shareButtonText}>コミュニティで共有・見る（みんなの掲示板）</Text>
         </Pressable>
       </Link>
       <View style={styles.dayRow}>

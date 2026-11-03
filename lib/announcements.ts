@@ -17,6 +17,13 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    id: 'phase4-update',
+    date: '2026-11-03',
+    title: 'コミュニティとファイル取り込みに対応しました',
+    body: 'フェーズ4として、ICS・CSVファイルからの予定の取り込み（確認画面と履歴つき）と、コミュニティ（みんなの掲示板）を追加しました。共有はQRコード方式から掲示板方式に変わります。掲示板が全員に公開されるにはサーバーの準備が必要で、それまではこの端末内だけの表示です。',
+    important: true,
+  },
+  {
     id: 'unofficial-notice',
     date: '2026-11-03',
     title: 'このアプリは非公式アプリです',

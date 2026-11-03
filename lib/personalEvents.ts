@@ -25,6 +25,15 @@ async function loadAll(): Promise<PersonalEvent[]> {
   }
 }
 
+/** ファイル取り込みなどから直接読み書きするためのヘルパー */
+export async function loadPersonalAll(): Promise<PersonalEvent[]> {
+  return loadAll();
+}
+
+export async function savePersonalAll(items: PersonalEvent[]): Promise<void> {
+  await AsyncStorage.setItem(KEY, JSON.stringify(items));
+}
+
 export function usePersonalEvents() {
   const [items, setItems] = useState<PersonalEvent[]>([]);
   const [loaded, setLoaded] = useState(false);

@@ -173,10 +173,16 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>共有・お知らせ</Text>
-        <Link href="/share" asChild>
+        <Text style={styles.cardTitle}>コミュニティ・データ</Text>
+        <Link href="/community" asChild>
           <Pressable style={styles.rowBetween}>
-            <Text style={styles.bodyText}>時間割の共有（QR・コード）</Text>
+            <Text style={styles.bodyText}>コミュニティ（みんなの掲示板）</Text>
+            <Text style={styles.linkText}>開く</Text>
+          </Pressable>
+        </Link>
+        <Link href="/import" asChild>
+          <Pressable style={styles.rowBetween}>
+            <Text style={styles.bodyText}>データの取り込み（ICS・CSV）</Text>
             <Text style={styles.linkText}>開く</Text>
           </Pressable>
         </Link>
