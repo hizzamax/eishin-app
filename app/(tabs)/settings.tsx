@@ -276,19 +276,19 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>コミュニティ・データ</Text>
         </View>
         <Link href="/community" asChild>
-          <Pressable style={[styles.rowBetween, styles.listRow]}>
+          <Pressable style={styles.listRow}>
             <Text style={styles.bodyText}>コミュニティ（みんなの掲示板）</Text>
             <Text style={styles.linkText}>›</Text>
           </Pressable>
         </Link>
         <Link href="/import" asChild>
-          <Pressable style={[styles.rowBetween, styles.listRow]}>
+          <Pressable style={styles.listRow}>
             <Text style={styles.bodyText}>データの取り込み（ICS・CSV）</Text>
             <Text style={styles.linkText}>›</Text>
           </Pressable>
         </Link>
         <Link href="/announcements" asChild>
-          <Pressable style={[styles.rowBetween, styles.listRow]}>
+          <Pressable style={styles.listRow}>
             <Text style={styles.bodyText}>お知らせ</Text>
             <Text style={styles.linkText}>›</Text>
           </Pressable>
@@ -395,7 +395,13 @@ const styles = StyleSheet.create({
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   bodyText: { fontSize: FontSize.body, color: Colors.text },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  listRow: { paddingVertical: Spacing.sm },
+  // Link(asChild) の子には配列スタイルを渡せないため、行レイアウトを1つのスタイルに統合している
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+  },
   toggleChip: { flex: 0, paddingHorizontal: Spacing.lg },
   linkText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
   ghostButton: { paddingVertical: Spacing.xs },

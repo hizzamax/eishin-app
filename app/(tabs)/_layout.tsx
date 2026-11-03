@@ -1,5 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 
 import { Colors } from '@/constants/Theme';
 
@@ -13,9 +14,10 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: Colors.background,
           borderTopColor: Colors.border,
-          height: 64,
+          // Web（スマホブラウザ）では下端がブラウザのバーに隠れてラベルが切れるため高めにする
+          height: Platform.OS === 'web' ? 84 : 64,
           paddingTop: 6,
-          paddingBottom: 8,
+          paddingBottom: Platform.OS === 'web' ? 20 : 8,
         },
         headerStyle: { backgroundColor: Colors.background },
         headerShadowVisible: false,
