@@ -72,7 +72,7 @@ function parseICSDateTime(value: string): { date: string; time: string } | null 
   return { date: `${year}-${pad(month)}-${pad(day)}`, time: `${pad(hour)}:${pad(minute)}` };
 }
 
-export function parseICS(text: string): { candidates: ImportCandidate[]; skipped: number } {
+export function parseICS(text: string): { candidates: ImportCandidate[]; skipped: number; recurring: boolean } {
   // 継続行（行頭が空白）を前の行に連結する
   const unfolded = text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
   const blocks = unfolded.split('BEGIN:VEVENT').slice(1);
@@ -112,7 +112,7 @@ export function parseICS(text: string): { candidates: ImportCandidate[]; skipped
       place: props.get('LOCATION') ? unescapeICS(props.get('LOCATION')!) : '',
     });
   }
-  return { candidates, skipped };
+  return { candidates, skipped, recurring: text.includes('RRULE') };
 }
 
 // --- CSV ---

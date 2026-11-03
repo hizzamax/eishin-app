@@ -13,9 +13,10 @@ import {
   type CommunityPost,
   type PostKind,
 } from '@/lib/community';
+import { confirmAction } from '@/lib/confirm';
 import { recordImport } from '@/lib/importHistory';
 import { useProfile } from '@/lib/profile';
-import { buildShareCode, importShareCode } from '@/lib/share';
+import { buildShareCode, importShareCode, parseShareCode } from '@/lib/share';
 
 const KIND_ORDER: PostKind[] = ['timetable', 'schedule', 'note'];
 type Filter = PostKind | 'all';
@@ -49,6 +50,7 @@ export default function CommunityScreen() {
   const [posting, setPosting] = useState(false);
 
   const [importedIds, setImportedIds] = useState<Record<string, string>>({});
+  const [importedOkIds, setImportedOkIds] = useState<Record<string, boolean>>({});
 
   const reload = useCallback(async () => {
     const feed = await loadCommunityPosts();
@@ -98,7 +100,7 @@ export default function CommunityScreen() {
     }
   };
 
-  const onImport = async (post: CommunityPost) => {
+  const doImport = async (post: CommunityPost) => {
     if (!post.payloadCode) return;
     try {
       const r = await importShareCode(post.payloadCode);
@@ -112,14 +114,33 @@ export default function CommunityScreen() {
         ...prev,
         [post.id]: `取り込みました（科目${r.subjectsDays}曜日分・ゼミ${r.zemiAdded}件・時間割変更${r.exceptionsApplied}件）`,
       }));
+      setImportedOkIds((prev) => ({ ...prev, [post.id]: true }));
     } catch {
       setImportedIds((prev) => ({ ...prev, [post.id]: '取り込みに失敗しました' }));
     }
   };
 
-  const onDelete = async (post: CommunityPost) => {
-    await deleteLocalPost(post.id);
-    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+  // 取り込みは自分のデータを上書きするため、内容を確認してから実行する
+  const onImport = (post: CommunityPost) => {
+    if (!post.payloadCode || importedOkIds[post.id]) return;
+    let summary = '時間割データを取り込みます。クラス・科目などは上書きされます。';
+    try {
+      const p = parseShareCode(post.payloadCode);
+      const days = p.subjects ? Object.keys(p.subjects).length : 0;
+      summary = `${p.profile.className || 'クラス未設定'}の時間割です。科目${days}曜日分・ゼミ${p.zemi.length}件・時間割変更${p.exceptions.length}件を取り込みます。クラス・コース・授業曜日と科目は上書きされます。`;
+    } catch {
+      // 内容を読めない場合は汎用の文言で確認する
+    }
+    confirmAction('この時間割を取り込みますか？', summary, () => void doImport(post), '取り込む');
+  };
+
+  const onDelete = (post: CommunityPost) => {
+    confirmAction('投稿を削除しますか？', `「${post.title}」を削除します。`, () => {
+      void (async () => {
+        await deleteLocalPost(post.id);
+        setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      })();
+    });
   };
 
   return (
@@ -141,7 +162,9 @@ export default function CommunityScreen() {
       {/* 見出し＋投稿ボタン */}
       <View style={styles.headerRow}>
         <Text style={styles.heading}>
-          みんなの投稿{!loading && posts.length > 0 ? <Text style={styles.headingCount}> {posts.length}件</Text> : null}
+          みんなの投稿{!loading && posts.length > 0 ? (
+            <Text style={styles.headingCount}> {filter === 'all' ? `${posts.length}件` : `${visiblePosts.length}件 / 全${posts.length}件`}</Text>
+          ) : null}
         </Text>
         <Pressable
           onPress={() => setFormOpen((v) => !v)}
@@ -256,8 +279,11 @@ export default function CommunityScreen() {
             <Text style={styles.postTitle}>{post.title}</Text>
             {post.body ? <Text style={styles.postBody}>{post.body}</Text> : null}
             {post.payloadCode && (
-              <Pressable onPress={() => onImport(post)} style={styles.importButton}>
-                <Text style={styles.primaryButtonText}>この時間割を取り込む</Text>
+              <Pressable
+                onPress={() => onImport(post)}
+                disabled={!!importedOkIds[post.id]}
+                style={[styles.importButton, importedOkIds[post.id] && styles.importButtonDone]}>
+                <Text style={styles.primaryButtonText}>{importedOkIds[post.id] ? '取り込み済み' : 'この時間割を取り込む'}</Text>
               </Pressable>
             )}
             {importedIds[post.id] ? <Text style={styles.success}>{importedIds[post.id]}</Text> : null}
@@ -371,6 +397,7 @@ const styles = StyleSheet.create({
   toggleTextOn: { color: Colors.white },
   primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.xs },
   importButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.sm + 2, alignItems: 'center', marginTop: Spacing.xs },
+  importButtonDone: { opacity: 0.55 },
   primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   error: { color: Colors.danger, fontSize: FontSize.small, lineHeight: 20 },

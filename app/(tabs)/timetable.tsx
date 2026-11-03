@@ -1,23 +1,36 @@
 import { SymbolView } from 'expo-symbols';
 import { Link } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
-import { FREE_DAYS_NOTE, PERIODS, WEEKDAYS, type WeekdayLabel } from '@/data/seed';
+import { PERIODS, WEEKDAYS, type WeekdayLabel } from '@/data/seed';
 import { applyExceptions, upcomingExceptions, useExceptions } from '@/lib/exceptions';
 import { useProfile } from '@/lib/profile';
-import { lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
+import { freeDayNote, lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
 import { confirmAction } from '@/lib/confirm';
-import { TimeField } from '@/components/Pickers';
+import { DateField, TimeField } from '@/components/Pickers';
 import { subjectColor } from '@/lib/subjectColor';
 import { effectiveSubjects, isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiForWeekday, type ZemiEntry } from '@/lib/zemi';
 
 const DAY_TABS: WeekdayLabel[] = ['月', '火', '水', '木', '金', '土'];
 
+function plusOneHour(t: string): string | undefined {
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return undefined;
+  return `${String(Math.min(23, Number(m[1]) + 1)).padStart(2, '0')}:${m[2]}`;
+}
+
 export default function TimetableScreen() {
   const profile = useProfile();
+  const [notice, setNotice] = useState('');
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNotice = (msg: string) => {
+    setNotice(msg);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(''), 3000);
+  };
   const { items: exceptions, upsert, remove: removeException } = useExceptions();
   const today = useMemo(() => WEEKDAYS[new Date().getDay()], []);
   const [selected, setSelected] = useState<WeekdayLabel>(DAY_TABS.includes(today) ? today : '月');
@@ -62,8 +75,12 @@ export default function TimetableScreen() {
       setZemiError('ゼミ名を入力してください');
       return;
     }
+    if (!zemiDraft.start || !zemiDraft.end) {
+      setZemiError('開始と終了の時刻を選んでください');
+      return;
+    }
     if (!/^\d{1,2}:\d{2}$/.test(zemiDraft.start) || !/^\d{1,2}:\d{2}$/.test(zemiDraft.end)) {
-      setZemiError('時間は 15:00 の形式で入力してください');
+      setZemiError('時刻の形式が正しくありません');
       return;
     }
     const normalize = (t: string) => {
@@ -79,6 +96,7 @@ export default function TimetableScreen() {
     const draft = { ...zemiDraft, name: zemiDraft.name.trim(), start, end };
     if (editingZemiId) updateZemi(editingZemiId, draft);
     else addZemi(draft);
+    showNotice(editingZemiId ? 'ゼミを更新しました' : 'ゼミを登録しました');
     setZemiDraft({ name: '', weekday: '火', start: '', end: '', place: '' });
     setEditingZemiId(null);
     setZemiError('');
@@ -96,16 +114,23 @@ export default function TimetableScreen() {
     setEditingPeriod(null);
     setSubjectInput('');
     setExceptionError('');
+    showNotice(subject === null ? '休講にしました' : '時間割の変更を保存しました');
   };
 
   const clearException = (periodLabel: string) => {
     const ex = exceptions.find((e) => e.date === editDateKey && e.periodLabel === periodLabel);
     if (ex) removeException(ex.id);
     setEditingPeriod(null);
+    showNotice('変更を取り消しました');
   };
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      {notice ? (
+        <View style={styles.noticeBar}>
+          <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
       <View style={styles.segment}>
         {DAY_TABS.map((day) => (
           <Pressable
@@ -123,7 +148,7 @@ export default function TimetableScreen() {
             <SymbolView name={{ ios: 'moon.zzz.fill', android: 'bedtime', web: 'bedtime' }} tintColor={Colors.accent} size={26} />
           </View>
           <Text style={styles.cardTitle}>{selected}曜日は授業がありません</Text>
-          <Text style={[styles.note, styles.centerText]}>{FREE_DAYS_NOTE}</Text>
+          <Text style={[styles.note, styles.centerText]}>{freeDayNote(selected)}</Text>
           <Text style={[styles.note, styles.centerText]}>ゼミがある日は、この下にゼミが表示されます。</Text>
         </View>
       ) : (
@@ -162,6 +187,7 @@ export default function TimetableScreen() {
                         onPress={() => {
                           setSubject(selected, i - 1, subjectDraft);
                           setEditingSubjectIdx(null);
+                          showNotice('科目を保存しました');
                         }}
                         style={styles.smallButton}>
                         <Text style={styles.smallButtonText}>科目を保存</Text>
@@ -222,12 +248,23 @@ export default function TimetableScreen() {
         ))}
       </View>
 
+      <Text style={styles.formLabel}>ほかの日付から選ぶ</Text>
+      <DateField
+        value={editDateKey}
+        onChange={(key) => {
+          setEditDateKey(key);
+          setEditingPeriod(null);
+        }}
+        placeholder="日付を選択"
+      />
+
       {editRows ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{editDateKey} の授業</Text>
           {editRows.map((row) => (
             <View key={row.period.label}>
               <Pressable
+                disabled={row.period.label === 'HR'}
                 onPress={() => {
                   setEditingPeriod(editingPeriod === row.period.label ? null : row.period.label);
                   setSubjectInput(row.subject ?? '');
@@ -239,9 +276,13 @@ export default function TimetableScreen() {
                 </Text>
                 <Text style={styles.label}>{row.period.label}</Text>
                 <Text style={styles.subject}>
-                  {row.changed && row.subject === null ? '休講' : (row.subject ?? '未設定')}
+                  {row.period.label === 'HR'
+                    ? 'ホームルーム'
+                    : row.changed && row.subject === null
+                      ? '休講'
+                      : (row.subject ?? '未設定')}
                 </Text>
-                {row.changed && <Text style={styles.changedBadge}>変更</Text>}
+                {row.changed && row.period.label !== 'HR' && <Text style={styles.changedBadge}>変更</Text>}
               </Pressable>
               {editingPeriod === row.period.label && (
                 <View style={styles.editor}>
@@ -309,6 +350,18 @@ export default function TimetableScreen() {
           <Text style={styles.smallButtonText}>{(zemiOpen ?? zemiItems.length === 0) ? '閉じる' : '開く'}</Text>
         </Pressable>
       </View>
+      {!(zemiOpen ?? zemiItems.length === 0) && zemiItems.length > 0 && (
+        <View style={styles.card}>
+          {zemiItems.map((z) => (
+            <View key={z.id} style={styles.rowBetween}>
+              <Text style={styles.noteDark}>
+                {z.weekday} {z.start}–{z.end} {z.name}
+                {z.place ? `（${z.place}）` : ''}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
       {(zemiOpen ?? zemiItems.length === 0) && (
       <View style={styles.card}>
         <Text style={styles.note}>
@@ -346,6 +399,7 @@ export default function TimetableScreen() {
             value={zemiDraft.end}
             onChange={(end) => setZemiDraft({ ...zemiDraft, end })}
             placeholder="終了"
+            initialHint={plusOneHour(zemiDraft.start)}
           />
         </View>
         <Text style={styles.formLabel}>場所（任意）</Text>
@@ -489,6 +543,14 @@ const styles = StyleSheet.create({
   formLabel: { fontSize: FontSize.small, color: Colors.subText },
   timeInput: { flex: 1, minWidth: 0 },
   timeSep: { fontSize: FontSize.body, color: Colors.subText, alignSelf: 'center' },
+  noticeBar: {
+    backgroundColor: Colors.successSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  noticeText: { fontSize: FontSize.small, color: Colors.success, fontWeight: '600' },
   error: { color: Colors.danger, fontSize: FontSize.small },
   primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center' },
   primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },

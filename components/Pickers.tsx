@@ -133,18 +133,22 @@ export function TimeField({
   onChange,
   placeholder = '時刻を選択',
   style,
+  initialHint,
 }: {
   value: string;
   onChange: (hhmm: string) => void;
   placeholder?: string;
   style?: StyleProp<ViewStyle>;
+  /** 未入力のときに最初に選ばれている時刻（例：終了時刻は開始の1時間後） */
+  initialHint?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [hour, setHour] = useState(15);
   const [minute, setMinute] = useState(0);
 
   const openPicker = () => {
-    const m = value.match(/^(\d{1,2}):(\d{2})$/);
+    const target = value || initialHint || '';
+    const m = target.match(/^(\d{1,2}):(\d{2})$/);
     if (m) {
       setHour(Math.min(23, Math.max(0, Number(m[1]))));
       setMinute(Math.min(55, Math.round(Number(m[2]) / 5) * 5));
@@ -270,8 +274,15 @@ const styles = StyleSheet.create({
   timeChipText: { fontSize: FontSize.body, color: Colors.text },
   timeChipTextActive: { color: Colors.white, fontWeight: '700' },
   sheetFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md },
-  cancelButton: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
-  cancelText: { fontSize: FontSize.body, color: Colors.subText },
+  cancelButton: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+  },
+  cancelText: { fontSize: FontSize.body, color: Colors.text },
   doneButton: {
     backgroundColor: Colors.text,
     borderRadius: Radius.pill,

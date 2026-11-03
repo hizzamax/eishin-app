@@ -21,6 +21,7 @@ import {
   useImportHistory,
   type ImportSource,
 } from '@/lib/importHistory';
+import { importShareCode, parseShareCode } from '@/lib/share';
 
 export default function ImportScreen() {
   const { records, setRecords } = useImportHistory();
@@ -38,14 +39,62 @@ export default function ImportScreen() {
     const parsed = isICS ? parseICS(text) : parseScheduleCSV(text);
     setSource(isICS ? 'ics' : 'csv');
     setCandidates(parsed.candidates);
+    const recurringNote = isICS && text.includes('RRULE') ? '繰り返し予定は最初の1件だけが取り込まれます。' : '';
     setParseNote(
       `${fileName ? `${fileName}：` : ''}${parsed.candidates.length}件の予定が見つかりました` +
         (parsed.skipped > 0 ? `（読み取れなかった行 ${parsed.skipped}件）` : '') +
-        '。内容を確認してから取り込んでください。',
+        recurringNote +
+        '内容を確認してから取り込んでください。',
     );
     if (parsed.candidates.length === 0) {
       setError('予定が1件も読み取れませんでした。ファイルの形式を確認してください。');
     }
+  };
+
+  const [shareText, setShareText] = useState('');
+  const [shareResult, setShareResult] = useState('');
+  const [shareError, setShareError] = useState('');
+
+  const doShareImport = () => {
+    setShareError('');
+    setShareResult('');
+    const code = shareText.trim();
+    if (!code.startsWith('EISHIN1.')) {
+      setShareError('EISHIN1. で始まる共有コードを貼り付けてください');
+      return;
+    }
+    let summary = '時間割データを取り込みます。クラス・科目などは上書きされます。';
+    try {
+      const p = parseShareCode(code);
+      const days = p.subjects ? Object.keys(p.subjects).length : 0;
+      summary = `${p.profile.className || 'クラス未設定'}の時間割です。科目${days}曜日分・ゼミ${p.zemi.length}件・時間割変更${p.exceptions.length}件を取り込みます。クラス・コース・授業曜日と科目は上書きされます。`;
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : '共有コードを読み取れませんでした');
+      return;
+    }
+    confirmAction(
+      '共有コードを取り込みますか？',
+      summary,
+      () => {
+        void (async () => {
+          try {
+            const r = await importShareCode(code);
+            await recordImport({
+              source: 'share-code',
+              added: r.zemiAdded + r.exceptionsApplied + r.subjectsDays,
+              skipped: 0,
+              note: '共有コードから取り込み',
+            });
+            setRecords(await loadImportHistory());
+            setShareResult(`取り込みました（科目${r.subjectsDays}曜日分・ゼミ${r.zemiAdded}件・時間割変更${r.exceptionsApplied}件）`);
+            setShareText('');
+          } catch {
+            setShareError('取り込みに失敗しました');
+          }
+        })();
+      },
+      '取り込む',
+    );
   };
 
   const [backupText, setBackupText] = useState('');
@@ -126,6 +175,11 @@ export default function ImportScreen() {
         <Text style={styles.note}>
           ICS（カレンダー）ファイルと、CSVファイル（日付,タイトル,時間,場所の順）に対応しています。取り込んだ予定は「個人の予定」として保存されます。
         </Text>
+        <Text style={styles.note}>
+          CSVの例（1行に1件。見出し行は自動で読み飛ばされます。時間と場所は空でも構いません）{'\n'}
+          2026-11-10, 図書館で勉強, 14:00-16:00, 図書館{'\n'}
+          2026-11-12, 買い物
+        </Text>
         <Pressable onPress={pickFile} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>ファイルを選ぶ（.ics / .csv）</Text>
         </Pressable>
@@ -179,6 +233,28 @@ export default function ImportScreen() {
           <Text style={styles.success}>{result}</Text>
         </View>
       ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>時間割の共有コード</Text>
+        <Text style={styles.note}>
+          友だちから受け取った共有コード（EISHIN1. で始まる文字列）を貼り付けると、その人の時間割を取り込めます。クラス・科目などは上書きされます。
+        </Text>
+        <TextInput
+          style={[styles.input, styles.pasteInput]}
+          value={shareText}
+          onChangeText={setShareText}
+          placeholder="EISHIN1. で始まるコードを貼り付け"
+          placeholderTextColor={Colors.subText}
+          autoCapitalize="none"
+          autoCorrect={false}
+          multiline
+        />
+        {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
+        {shareResult ? <Text style={styles.success}>{shareResult}</Text> : null}
+        <Pressable onPress={doShareImport} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>共有コードを取り込む</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>バックアップから復元</Text>

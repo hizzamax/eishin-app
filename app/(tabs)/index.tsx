@@ -5,13 +5,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, FontSize, HeroGradient, HeroShadow, Radius, Shadow, Spacing } from '@/constants/Theme';
-import { FREE_DAYS_NOTE } from '@/data/seed';
 import { useAnnouncements } from '@/lib/announcements';
 import { daysUntil, urgentAssignments, useAssignments } from '@/lib/assignments';
 import { applyExceptions, upcomingExceptions, useExceptions, type AppliedRow } from '@/lib/exceptions';
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
-import { formatDate, hasSampleSubjects, isClassDay, lessonsFor, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
+import { formatDate, freeDayNote, hasSampleSubjects, isClassDay, lessonsFor, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
 import { subjectColor } from '@/lib/subjectColor';
 import { isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiFor } from '@/lib/zemi';
@@ -102,7 +101,7 @@ export default function HomeScreen() {
   const heroMain =
     isSchoolToday
       ? upcoming
-        ? `次の授業は ${upcoming.row.subject ?? upcoming.row.period.label}`
+        ? `次の授業は ${upcoming.row.subject ?? (upcoming.row.period.label === 'HR' ? 'ホームルーム' : upcoming.row.period.label)}`
         : '今日の授業は終わりました'
       : nextSchoolDay
         ? `次の登校日は ${nextSchoolDay.getMonth() + 1}月${nextSchoolDay.getDate()}日（${weekdayLabel(nextSchoolDay)}）`
@@ -110,9 +109,9 @@ export default function HomeScreen() {
   const heroSub =
     isSchoolToday
       ? upcoming
-        ? `${upcoming.row.period.label} ${upcoming.row.period.start}〜 ・ あと${upcoming.inMinutes}分`
+        ? `${upcoming.row.period.label === 'HR' ? 'ホームルーム' : upcoming.row.period.label} ${upcoming.row.period.start}〜 ・ あと${upcoming.inMinutes}分`
         : 'おつかれさまでした'
-      : FREE_DAYS_NOTE;
+      : freeDayNote(weekdayLabel(now));
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>

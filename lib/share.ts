@@ -9,7 +9,7 @@ import { loadZemiAll, saveZemiAll, type ZemiEntry } from '@/lib/zemi';
 /**
  * 時間割の共有（フェーズ3）。
  * アカウントやサーバーを使わず、端末同士で直接渡せる形にする。
- * 共有コード（文字列）と、そのコードをそのまま入れたQRコードの2通り。
+ * 共有コード（文字列）を掲示板に添付するか、取り込み画面に直接貼り付けて渡す。
  *
  * 共有されるもの：クラス・コース・授業曜日・登録した科目・ゼミ・時間割変更（例外）
  * 共有されないもの：名前・個人的な予定・課題（個人情報のため）
@@ -245,6 +245,3 @@ export async function importShareCode(code: string): Promise<ImportResult> {
     course: payload.profile.course,
   };
 }
-
-/** QRコードに収まる目安（これを超える場合はコード共有を使う） */
-export const QR_MAX_LENGTH = 1800;

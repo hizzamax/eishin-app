@@ -19,6 +19,11 @@ export function isClassDay(date: Date, classDays: WeekdayLabel[]): boolean {
   return classDays.includes(weekdayLabel(date));
 }
 
+/** 授業のない日の注記。土日と平日（自由登校日）で文言を出し分ける */
+export function freeDayNote(label: WeekdayLabel): string {
+  return label === '土' || label === '日' ? '週末は授業がありません' : '自由登校日です（通常授業なし）';
+}
+
 /** 指定日の授業（時限＋科目）。科目の配列は1限・2限・3限の順（HRは科目なし）。 */
 export type LessonRow = {
   period: Period;

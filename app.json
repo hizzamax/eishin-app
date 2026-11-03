@@ -28,13 +28,7 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-notifications",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "時間割のQRコードを読み取るためにカメラを使用します"
-        }
-      ]
+      "expo-notifications"
     ],
     "scheme": "eishinapp",
     "slug": "eishin-app",

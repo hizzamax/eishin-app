@@ -70,6 +70,13 @@ export function usePersonalEvents() {
     [items, persist],
   );
 
+  const update = useCallback(
+    (id: string, draft: Omit<PersonalEvent, 'id'>) => {
+      persist(items.map((e) => (e.id === id ? { ...e, ...draft } : e)));
+    },
+    [items, persist],
+  );
+
   const remove = useCallback(
     (id: string) => {
       persist(items.filter((e) => e.id !== id));
@@ -77,5 +84,5 @@ export function usePersonalEvents() {
     [items, persist],
   );
 
-  return { items, loaded, add, remove };
+  return { items, loaded, add, update, remove };
 }

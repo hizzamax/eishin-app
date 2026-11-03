@@ -115,5 +115,12 @@ export function useAssignments() {
     [items, persist],
   );
 
-  return { items, loaded, add, update, remove };
+  const removeMany = useCallback(
+    (ids: string[]) => {
+      persist(items.filter((a) => !ids.includes(a.id)));
+    },
+    [items, persist],
+  );
+
+  return { items, loaded, add, update, remove, removeMany };
 }

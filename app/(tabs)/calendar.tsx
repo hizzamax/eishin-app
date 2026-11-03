@@ -1,5 +1,5 @@
-import { Link } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
@@ -8,7 +8,7 @@ import { isValidDateKey, useAssignments } from '@/lib/assignments';
 import { confirmAction } from '@/lib/confirm';
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
-import { DateField } from '@/components/Pickers';
+import { DateField, TimeField } from '@/components/Pickers';
 import { isClassDay, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
 
 const KIND_LABEL: Record<SchoolEvent['kind'], string> = {
@@ -33,10 +33,15 @@ function dateLabel(dateKey: string): string {
 }
 
 export default function CalendarScreen() {
-  const { items: personal, add, remove } = usePersonalEvents();
+  const { items: personal, add, update, remove } = usePersonalEvents();
   const profile = useProfile();
   const { items: assignments } = useAssignments();
-  const today = useMemo(() => new Date(), []);
+  const [today, setToday] = useState(() => new Date());
+  useFocusEffect(
+    useCallback(() => {
+      setToday(new Date());
+    }, []),
+  );
   const classDays = profile?.classDays ?? ['月', '水', '金'];
 
   // --- 月間表示 ---
@@ -70,9 +75,46 @@ export default function CalendarScreen() {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(toDateKey(today));
-  const [time, setTime] = useState('');
+  const [timeStart, setTimeStart] = useState('');
+  const [timeEnd, setTimeEnd] = useState('');
+  const [timeTouched, setTimeTouched] = useState(false);
+  const [originalTime, setOriginalTime] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [place, setPlace] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNotice = (msg: string) => {
+    setNotice(msg);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(''), 3000);
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setTimeStart('');
+    setTimeEnd('');
+    setTimeTouched(false);
+    setOriginalTime('');
+    setEditingId(null);
+    setPlace('');
+    setError('');
+    setShowForm(false);
+  };
+
+  const startEditPersonal = (e: { id: string; title: string; date: string; time: string; place: string }) => {
+    setEditingId(e.id);
+    setTitle(e.title);
+    setDate(e.date);
+    setPlace(e.place);
+    setOriginalTime(e.time);
+    setTimeTouched(false);
+    const m = e.time.match(/^(\d{1,2}:\d{2})(?:\s*[-–〜~]\s*(\d{1,2}:\d{2}))?/);
+    setTimeStart(m ? m[1] : '');
+    setTimeEnd(m?.[2] ?? '');
+    setError('');
+    setShowForm(true);
+  };
 
   const events = useMemo<UnifiedEvent[]>(() => {
     const school: UnifiedEvent[] = upcomingEvents(today).map((e) => ({
@@ -98,7 +140,7 @@ export default function CalendarScreen() {
     return [...school, ...mine].sort((a, b) => a.date.localeCompare(b.date));
   }, [today, personal]);
 
-  const onAdd = () => {
+  const onSubmit = () => {
     if (!title.trim()) {
       setError('タイトルを入力してください');
       return;
@@ -107,16 +149,27 @@ export default function CalendarScreen() {
       setError('日付を選択してください');
       return;
     }
-    add({ date, time: time.trim(), title: title.trim(), place: place.trim() });
-    setTitle('');
-    setTime('');
-    setPlace('');
-    setError('');
-    setShowForm(false);
+    // 時刻欄に触れていない編集では、元の文字列（取り込み由来など）をそのまま残す
+    const time =
+      timeTouched || !editingId ? (timeStart ? (timeEnd ? `${timeStart}-${timeEnd}` : timeStart) : '') : originalTime;
+    if (editingId) {
+      update(editingId, { date, time, title: title.trim(), place: place.trim() });
+      showNotice('予定を更新しました');
+    } else {
+      add({ date, time, title: title.trim(), place: place.trim() });
+      showNotice('予定を追加しました');
+    }
+    setSelectedKey(date);
+    resetForm();
   };
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      {notice ? (
+        <View style={styles.noticeBar}>
+          <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
       <View style={styles.rowBetween}>
         <Text style={styles.heading}>これからの予定</Text>
         <View style={styles.rowGap}>
@@ -240,11 +293,21 @@ export default function CalendarScreen() {
               </Text>
             </View>
             {e.id && (
-              <Pressable
-                hitSlop={8}
-                onPress={() => confirmAction('予定を削除しますか？', `「${e.title}」を削除します。`, () => remove(e.id!))}>
-                <Text style={styles.deleteText}>削除</Text>
-              </Pressable>
+              <View style={styles.detailActions}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => {
+                    const target = personal.find((p) => p.id === e.id);
+                    if (target) startEditPersonal(target);
+                  }}>
+                  <Text style={styles.editText}>編集</Text>
+                </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => confirmAction('予定を削除しますか？', `「${e.title}」を削除します。`, () => remove(e.id!))}>
+                  <Text style={styles.deleteText}>削除</Text>
+                </Pressable>
+              </View>
             )}
           </View>
         ))}
@@ -264,8 +327,13 @@ export default function CalendarScreen() {
 
       <Pressable
         onPress={() => {
-          if (!showForm) setDate(selectedKey);
-          setShowForm(!showForm);
+          if (showForm) {
+            resetForm();
+          } else {
+            setEditingId(null);
+            setDate(selectedKey);
+            setShowForm(true);
+          }
         }}
         style={styles.addButton}>
         <Text style={styles.addButtonText}>{showForm ? '閉じる' : '＋ 自分の予定を追加'}</Text>
@@ -278,13 +346,48 @@ export default function CalendarScreen() {
           <Text style={styles.label}>日付 *</Text>
           <DateField value={date} onChange={setDate} placeholder="日付を選択" />
           <Text style={styles.label}>時間（任意）</Text>
-          <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="例：14:00-16:00" placeholderTextColor={Colors.subText} />
+          <View style={styles.timeRow}>
+            <TimeField
+              style={styles.timeField}
+              value={timeStart}
+              onChange={(v) => {
+                setTimeStart(v);
+                setTimeTouched(true);
+              }}
+              placeholder="開始"
+            />
+            <Text style={styles.timeSep}>〜</Text>
+            <TimeField
+              style={styles.timeField}
+              value={timeEnd}
+              onChange={(v) => {
+                setTimeEnd(v);
+                setTimeTouched(true);
+              }}
+              placeholder="終了"
+            />
+          </View>
+          {timeStart ? (
+            <Pressable
+              onPress={() => {
+                setTimeStart('');
+                setTimeEnd('');
+                setTimeTouched(true);
+              }}>
+              <Text style={styles.deleteText}>時間をクリア</Text>
+            </Pressable>
+          ) : null}
           <Text style={styles.label}>場所（任意）</Text>
           <TextInput style={styles.input} value={place} onChangeText={setPlace} placeholder="任意" placeholderTextColor={Colors.subText} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable onPress={onAdd} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>追加する</Text>
+          <Pressable onPress={onSubmit} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{editingId ? '更新する' : '追加する'}</Text>
           </Pressable>
+          {editingId && (
+            <Pressable onPress={resetForm} style={styles.ghostButton}>
+              <Text style={styles.ghostButtonText}>編集をやめる</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -319,12 +422,26 @@ export default function CalendarScreen() {
             </Text>
           )}
           {event.personalId && (
-            <Pressable
-              onPress={() =>
-                confirmAction('予定を削除しますか？', `「${event.title}」を削除します。`, () => remove(event.personalId!))
-              }>
-              <Text style={styles.deleteText}>この予定を削除</Text>
-            </Pressable>
+            <View style={styles.detailActions}>
+              <Pressable
+                hitSlop={8}
+                onPress={() => {
+                  const target = personal.find((p) => p.id === event.personalId);
+                  if (target) {
+                    setSelectedKey(target.date);
+                    startEditPersonal(target);
+                  }
+                }}>
+                <Text style={styles.editText}>編集</Text>
+              </Pressable>
+              <Pressable
+                hitSlop={8}
+                onPress={() =>
+                  confirmAction('予定を削除しますか？', `「${event.title}」を削除します。`, () => remove(event.personalId!))
+                }>
+                <Text style={styles.deleteText}>この予定を削除</Text>
+              </Pressable>
+            </View>
           )}
         </View>
       ))}
@@ -419,6 +536,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  ghostButton: { paddingVertical: Spacing.sm, alignItems: 'center' },
+  ghostButtonText: { fontSize: FontSize.body, color: Colors.subText },
+  timeField: { flex: 1, minWidth: 0 },
+  timeSep: { fontSize: FontSize.body, color: Colors.subText },
+  detailActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  editText: { fontSize: FontSize.small, color: Colors.blue, fontWeight: '600' },
+  noticeBar: {
+    backgroundColor: Colors.successSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  noticeText: { fontSize: FontSize.small, color: Colors.success, fontWeight: '600' },
   primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   error: { color: Colors.danger, fontSize: FontSize.small },
   deleteText: { color: Colors.danger, fontSize: FontSize.small, marginTop: Spacing.xs },

@@ -5,7 +5,7 @@ import { decodeBase64Url, encodeBase64Url } from '@/lib/share';
 
 /**
  * データのバックアップ・復元（SPEC 3-4）。
- * 端末内の全データ（プロフィール・科目・ゼミ・課題・予定・登校予定・
+ * 端末内の全データ（プロフィール・科目・ゼミ・課題・予定・
  * 時間割変更・お知らせ既読・通知設定・取り込み履歴・コミュニティの自分の投稿）を
  * 1つのコードにまとめ、別の端末や再インストール時に復元できる。
  */
@@ -16,7 +16,7 @@ const BACKUP_KEYS = [
   'eishin.subjects.v1',
   'eishin.zemi.v1',
   'eishin.assignments.v1',
-  'eishin.attendance.v1',
+  'eishin.attendance.v1', // 廃止した登校予定機能の旧データ（互換のため残す）
   'eishin.exceptions.v1',
   'eishin.events.v1',
   'eishin.announcementReads.v1',

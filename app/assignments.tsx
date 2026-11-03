@@ -1,5 +1,6 @@
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useRef, useState, type ComponentRef } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState, type ComponentRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
@@ -13,6 +14,7 @@ import {
 } from '@/lib/assignments';
 import { confirmAction } from '@/lib/confirm';
 import { DateField } from '@/components/Pickers';
+import { toDateKey } from '@/lib/school';
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
   todo: '未着手',
@@ -40,15 +42,33 @@ type Draft = { title: string; subject: string; dueDate: string; detail: string }
 const EMPTY: Draft = { title: '', subject: '', dueDate: '', detail: '' };
 
 export default function AssignmentsScreen() {
-  const { items, add, update, remove } = useAssignments();
+  const { items, add, update, remove, removeMany } = useAssignments();
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingStatus, setEditingStatus] = useState<AssignmentStatus>('todo');
   const [formOpen, setFormOpen] = useState(false);
   const [error, setError] = useState('');
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
-  const today = useMemo(() => new Date(), []);
+  const [today, setToday] = useState(() => new Date());
+  useFocusEffect(
+    useCallback(() => {
+      setToday(new Date());
+    }, []),
+  );
+  const [notice, setNotice] = useState('');
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNotice = (msg: string) => {
+    setNotice(msg);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(''), 3000);
+  };
+  const [filter, setFilter] = useState<'all' | 'open' | 'done'>('all');
   const list = useMemo(() => sortedAssignments(items), [items]);
+  const visibleList = useMemo(
+    () => list.filter((a) => (filter === 'all' ? true : filter === 'done' ? a.status === 'done' : a.status !== 'done')),
+    [list, filter],
+  );
+  const doneCount = useMemo(() => items.filter((a) => a.status === 'done').length, [items]);
 
   const closeForm = () => {
     setEditingId(null);
@@ -68,8 +88,10 @@ export default function AssignmentsScreen() {
     }
     if (editingId) {
       update(editingId, { ...draft, title: draft.title.trim(), status: editingStatus });
+      showNotice('課題を更新しました');
     } else {
       add({ ...draft, title: draft.title.trim(), status: 'todo', memo: '' });
+      showNotice('課題を追加しました');
     }
     closeForm();
   };
@@ -124,6 +146,9 @@ export default function AssignmentsScreen() {
             onChange={(dueDate) => setDraft({ ...draft, dueDate })}
             placeholder="日付を選択"
           />
+          {draft.dueDate && draft.dueDate < toDateKey(today) ? (
+            <Text style={styles.error}>期限が過去の日付です</Text>
+          ) : null}
           <Text style={styles.label}>内容・メモ</Text>
           <TextInput
             style={styles.input}
@@ -162,6 +187,46 @@ export default function AssignmentsScreen() {
         </View>
       )}
 
+      {notice ? (
+        <View style={styles.noticeBar}>
+          <Text style={styles.noticeText}>{notice}</Text>
+        </View>
+      ) : null}
+      {list.length > 0 && (
+        <View style={styles.filterRow}>
+          <View style={styles.chipRow}>
+            {(
+              [
+                ['all', 'すべて'],
+                ['open', '未完了'],
+                ['done', '提出済み'],
+              ] as const
+            ).map(([k, label]) => {
+              const active = filter === k;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => setFilter(k)}
+                  style={[styles.statusSelectChip, styles.filterChip, active && styles.statusSelectChipActive]}>
+                  <Text style={[styles.statusSelectText, active && styles.statusSelectTextActive]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {doneCount > 0 && (
+            <Pressable
+              onPress={() =>
+                confirmAction('提出済みの課題を削除しますか？', `${doneCount}件の課題をまとめて削除します。`, () => {
+                  removeMany(items.filter((a) => a.status === 'done').map((a) => a.id));
+                  showNotice('提出済みの課題を削除しました');
+                })
+              }>
+              <Text style={styles.smallButtonDanger}>提出済みをまとめて削除</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      {list.length > 0 && visibleList.length === 0 && <Text style={styles.note}>この絞り込みでは課題がありません。</Text>}
       {list.length === 0 && !showForm && (
         <View style={styles.emptyCard}>
           <SymbolView name={{ ios: 'checklist', android: 'checklist', web: 'checklist' }} tintColor={Colors.accentSub} size={40} />
@@ -169,7 +234,7 @@ export default function AssignmentsScreen() {
           <Text style={styles.note}>右上の「追加」から登録できます。</Text>
         </View>
       )}
-      {list.map((a) => {
+      {visibleList.map((a) => {
         const chip = STATUS_CHIP[a.status];
         const overdue = a.status !== 'done' && daysUntil(a.dueDate, today) < 0;
         return (
@@ -177,10 +242,14 @@ export default function AssignmentsScreen() {
             <View style={styles.rowBetween}>
               <Text style={styles.itemTitle}>{a.title}</Text>
               <Pressable
-                onPress={() => onEdit(a)}
+                onPress={() => {
+                  const next = STATUS_ORDER[(STATUS_ORDER.indexOf(a.status) + 1) % STATUS_ORDER.length];
+                  update(a.id, { status: next });
+                  showNotice(`「${a.title}」を${STATUS_LABEL[next]}にしました`);
+                }}
                 hitSlop={6}
                 style={[styles.statusChip, { backgroundColor: chip.bg }]}>
-                <Text style={[styles.statusText, { color: chip.fg }]}>{STATUS_LABEL[a.status]}</Text>
+                <Text style={[styles.statusText, { color: chip.fg }]}>{STATUS_LABEL[a.status]} ▾</Text>
               </Pressable>
             </View>
             <Text style={styles.note}>
@@ -203,7 +272,7 @@ export default function AssignmentsScreen() {
           </View>
         );
       })}
-      <Text style={styles.footer}>状態は、課題を編集する画面で変更できます。</Text>
+      <Text style={styles.footer}>状態は、カード右上のバッジをタップすると切り替わります。</Text>
     </ScrollView>
   );
 }
@@ -246,6 +315,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   chipRow: { flexDirection: 'row', gap: Spacing.sm },
+  filterRow: { gap: Spacing.sm },
+  filterChip: { flex: 0, paddingHorizontal: Spacing.md, minHeight: 34 },
+  noticeBar: {
+    backgroundColor: Colors.successSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  noticeText: { fontSize: FontSize.small, color: Colors.success, fontWeight: '600' },
   statusSelectChip: {
     flex: 1,
     minHeight: 38,

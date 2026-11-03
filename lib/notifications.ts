@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
 import { EVENTS } from '@/data/seed';
@@ -11,6 +12,7 @@ import { EVENTS } from '@/data/seed';
  *
  * 注意：Expo Go（Android）は SDK 53 以降 expo-notifications が動作しないため、
  * 通知が実際に届くのは開発ビルド／製品版のみ。Expo Go では何もせず終了する。
+ * Web版もローカル通知に未対応のため、通知はアプリ版でのみ動作する。
  */
 
 export type NotifSettings = {
@@ -24,9 +26,15 @@ const ASSIGNMENTS_KEY = 'eishin.assignments.v1';
 const EXCEPTIONS_KEY = 'eishin.exceptions.v1';
 const PERSONAL_EVENTS_KEY = 'eishin.events.v1';
 
-/** Expo Go では通知が動作しない（開発ビルド／製品版でのみ有効） */
+/** 通知が動作する環境か（Web版と Expo Go では動作しない。開発ビルド／製品版でのみ有効） */
 export function notificationsRuntimeSupported(): boolean {
+  if (Platform.OS === 'web') return false;
   return Constants.executionEnvironment !== 'storeClient';
+}
+
+/** Web版かどうか（設定画面で未対応の理由を出し分けるため） */
+export function notificationsIsWeb(): boolean {
+  return Platform.OS === 'web';
 }
 
 export function setupNotificationHandler(): void {
@@ -179,9 +187,11 @@ export async function syncNotifications(
   }
 }
 
-/** その場で1件通知する（時間割変更の登録時、テスト通知など） */
+/** その場で1件通知する（時間割変更の登録時、テスト通知など）。設定でOFFなら送らない */
 export async function notifyNow(title: string, body: string): Promise<boolean> {
   if (!notificationsRuntimeSupported()) return false;
+  const settings = await loadNotifSettings();
+  if (!settings.enabled) return false;
   try {
     const perm = await Notifications.getPermissionsAsync();
     if (!perm.granted) return false;

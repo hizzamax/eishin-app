@@ -11,6 +11,7 @@ import { ALL_CLASS_DAY_CANDIDATES, type WeekdayLabel } from '@/data/seed';
 import {
   cancelAllNotifications,
   loadNotifSettings,
+  notificationsIsWeb,
   notificationsRuntimeSupported,
   notifyNow,
   requestNotificationPermission,
@@ -34,7 +35,8 @@ export default function SettingsScreen() {
   const dirtyRef = useRef(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [notifNote, setNotifNote] = useState('');
-  const expoGo = !notificationsRuntimeSupported();
+  const notifWeb = notificationsIsWeb();
+  const notifUnsupported = !notificationsRuntimeSupported();
 
   useEffect(() => {
     loadProfile().then(setProfile);
@@ -51,41 +53,65 @@ export default function SettingsScreen() {
   );
 
   const toggleNotif = async () => {
-    const next = !notifEnabled;
-    setNotifEnabled(next);
-    await saveNotifSettings({ enabled: next });
-    if (next) {
-      if (expoGo) {
-        setNotifNote('Expo Goでは通知は動作しません。開発ビルド／製品版で有効になります。');
+    if (!notifEnabled) {
+      // ONにする：未対応環境では状態を変えず、理由だけ伝える
+      if (notifUnsupported) {
+        setNotifNote(
+          notifWeb
+            ? 'Web版では通知は届きません。アプリ版（製品版）でお使いください。'
+            : 'Expo Goでは通知は動作しません。開発ビルド／製品版で有効になります。',
+        );
         return;
       }
       const granted = await requestNotificationPermission();
       if (!granted) {
+        // 許可が取れなかったらONのままにしない（「ONなのに届かない」状態を作らない）
+        setNotifEnabled(false);
+        await saveNotifSettings({ enabled: false });
         setNotifNote('通知の許可がありませんでした。端末の設定で許可してください。');
         return;
       }
+      setNotifEnabled(true);
+      await saveNotifSettings({ enabled: true });
       const res = await syncNotifications({});
       setNotifNote(`通知を有効にしました（${res.scheduled}件を予約）`);
     } else {
+      setNotifEnabled(false);
+      await saveNotifSettings({ enabled: false });
       await cancelAllNotifications();
       setNotifNote('通知を無効にしました');
     }
   };
 
   const [backupNote, setBackupNote] = useState('');
+  const [backupCode, setBackupCode] = useState('');
   const onBackup = async () => {
     try {
       const code = await createBackupCode();
-      await Share.share({ message: code });
-      setBackupNote('バックアップコードを作成しました。復元は「データの取り込み」画面からできます。コードは他の人に見せないでください（自分のデータが含まれます）。');
+      setBackupCode(code);
+      try {
+        await Share.share({ message: code });
+        setBackupNote('バックアップコードを作成しました。復元は「データの取り込み」画面からできます。コードは他の人に見せないでください（自分のデータが含まれます）。');
+      } catch {
+        // Webなど共有シートが使えない環境では、コードを画面に表示してコピーしてもらう
+        setBackupNote('共有できなかったため、コードを下に表示しています。コピーして安全な場所に保管してください。復元は「データの取り込み」画面からできます。');
+      }
     } catch {
       setBackupNote('バックアップを作成できませんでした');
     }
   };
 
   const sendTest = async () => {
-    if (expoGo) {
-      setNotifNote('Expo Goではテスト通知も送れません。開発ビルド／製品版でお試しください。');
+    if (notifUnsupported) {
+      setNotifNote(
+        notifWeb
+          ? 'Web版ではテスト通知も送れません。アプリ版でお試しください。'
+          : 'Expo Goではテスト通知も送れません。開発ビルド／製品版でお試しください。',
+      );
+      return;
+    }
+    if (!notifEnabled) {
+      setNotifNote('通知がOFFです。先に「通知を受け取る」をONにしてください。');
       return;
     }
     const granted = await requestNotificationPermission();
@@ -119,7 +145,13 @@ export default function SettingsScreen() {
     );
   };
 
+  const [saveError, setSaveError] = useState('');
   const onSave = async () => {
+    if (profile.classDays.length === 0) {
+      setSaveError('授業がある曜日を1日以上選んでください');
+      return;
+    }
+    setSaveError('');
     await saveProfile(profile);
     setSaved(true);
     setDirty(false);
@@ -143,7 +175,7 @@ export default function SettingsScreen() {
             setSaved(false); setDirty(true); dirtyRef.current = true;
             setProfile({ ...profile, name });
           }}
-          placeholder="未設定"
+          placeholder="名前（任意）"
           placeholderTextColor={Colors.subText}
         />
         <Text style={styles.label}>クラス（学年・組を選んでください）</Text>
@@ -231,6 +263,7 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+        {saveError ? <Text style={styles.error}>{saveError}</Text> : null}
         <Pressable onPress={onSave} style={styles.saveButton}>
           <Text style={styles.saveButtonText}>{saved ? '保存しました' : '保存する'}</Text>
         </Pressable>
@@ -257,9 +290,11 @@ export default function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
-        {expoGo && (
+        {notifUnsupported && (
           <Text style={styles.note}>
-            ※ いまのプレビュー（Expo Go）では通知機能が動作しません。開発ビルド／製品版で有効になります。
+            {notifWeb
+              ? '※ Web版では通知は届きません。アプリ版（製品版）でのみ使えます。'
+              : '※ いまのプレビュー（Expo Go）では通知機能が動作しません。開発ビルド／製品版で有効になります。'}
           </Text>
         )}
         {notifNote ? <Text style={styles.note}>{notifNote}</Text> : null}
@@ -309,6 +344,13 @@ export default function SettingsScreen() {
           <Text style={styles.saveButtonText}>バックアップを作成して共有</Text>
         </Pressable>
         {backupNote ? <Text style={styles.note}>{backupNote}</Text> : null}
+        {backupCode ? (
+          <View style={styles.codeBox}>
+            <Text selectable style={styles.codeText}>
+              {backupCode}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -393,6 +435,15 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
+  error: { fontSize: FontSize.small, color: Colors.danger, lineHeight: 20 },
+  codeBox: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.subBackground,
+    padding: Spacing.md,
+  },
+  codeText: { fontSize: FontSize.caption, color: Colors.text },
   bodyText: { fontSize: FontSize.body, color: Colors.text },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   // Link(asChild) の子には配列スタイルを渡せないため、行レイアウトを1つのスタイルに統合している
