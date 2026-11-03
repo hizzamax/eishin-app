@@ -57,6 +57,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="community"
+        options={{
+          title: '掲示板',
+          tabBarIcon: ({ color }) => (
+            <SymbolView
+              name={{ ios: 'person.3.fill', android: 'groups', web: 'groups' }}
+              tintColor={color}
+              size={26}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: '設定',
