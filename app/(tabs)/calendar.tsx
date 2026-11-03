@@ -135,19 +135,31 @@ export default function CalendarScreen() {
 
       <View style={styles.card}>
         <View style={styles.rowBetween}>
-          <Pressable onPress={() => setMonthOffset(monthOffset - 1)}>
-            <Text style={styles.linkText}>‹ 前月</Text>
+          <Pressable onPress={() => setMonthOffset(monthOffset - 1)} style={styles.navCircle}>
+            <Text style={styles.navArrow}>‹</Text>
           </Pressable>
           <Text style={styles.cardTitle}>
             {viewYear}年{viewMonth + 1}月
           </Text>
-          <Pressable onPress={() => setMonthOffset(monthOffset + 1)}>
-            <Text style={styles.linkText}>次月 ›</Text>
-          </Pressable>
+          <View style={styles.rowGap}>
+            {monthOffset !== 0 && (
+              <Pressable
+                onPress={() => {
+                  setMonthOffset(0);
+                  setSelectedKey(toDateKey(today));
+                }}
+                style={styles.todayPill}>
+                <Text style={styles.todayPillText}>今日</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setMonthOffset(monthOffset + 1)} style={styles.navCircle}>
+              <Text style={styles.navArrow}>›</Text>
+            </Pressable>
+          </View>
         </View>
         <View style={styles.weekRow}>
-          {['日', '月', '火', '水', '木', '金', '土'].map((w) => (
-            <Text key={w} style={styles.weekCell}>
+          {['日', '月', '火', '水', '木', '金', '土'].map((w, i) => (
+            <Text key={w} style={[styles.weekCell, i === 0 && styles.weekSun, i === 6 && styles.weekSat]}>
               {w}
             </Text>
           ))}
@@ -164,39 +176,84 @@ export default function CalendarScreen() {
                 key={key}
                 onPress={() => setSelectedKey(key)}
                 style={[styles.cell, isSelected && styles.cellSelected]}>
-                <Text style={[styles.cellDay, isToday && styles.cellToday, isSchool && styles.cellSchool]}>
+                <Text
+                  style={[
+                    styles.cellDay,
+                    isToday && !isSelected && styles.cellToday,
+                    isSelected && styles.cellDaySelected,
+                    isSchool && styles.cellSchool,
+                  ]}>
                   {d.getDate()}
                 </Text>
                 <View style={styles.dotRow}>
-                  {schoolEventDates.has(key) && <View style={[styles.dot, { backgroundColor: Colors.accent }]} />}
-                  {personalDates.has(key) && <View style={[styles.dot, { backgroundColor: Colors.success }]} />}
-                  {dueDates.has(key) && <View style={[styles.dot, { backgroundColor: Colors.danger }]} />}
+                  {schoolEventDates.has(key) && (
+                    <View style={[styles.dot, { backgroundColor: isSelected ? '#FFFFFF' : Colors.blue }]} />
+                  )}
+                  {personalDates.has(key) && (
+                    <View style={[styles.dot, { backgroundColor: isSelected ? '#FFFFFF' : Colors.success }]} />
+                  )}
+                  {dueDates.has(key) && (
+                    <View style={[styles.dot, { backgroundColor: isSelected ? '#FFFFFF' : Colors.danger }]} />
+                  )}
                 </View>
               </Pressable>
             );
           })}
         </View>
-        <Text style={styles.note}>青＝学校行事、緑＝個人の予定、赤＝課題の期限。下線は登校日です。日付をタップすると下に詳細が出ます。</Text>
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: Colors.blue }]} />
+            <Text style={styles.legendText}>学校行事</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: Colors.success }]} />
+            <Text style={styles.legendText}>個人</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: Colors.danger }]} />
+            <Text style={styles.legendText}>課題期限</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <Text style={[styles.legendText, styles.cellSchool]}>12</Text>
+            <Text style={styles.legendText}>登校日</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{dateLabel(selectedKey)} の詳細</Text>
-        <Text style={styles.note}>登校予定：{ATTENDANCE_LABEL[selectedKind]}</Text>
+        <View style={styles.rowBetween}>
+          <Text style={styles.cardTitle}>{dateLabel(selectedKey)}</Text>
+          <View style={styles.softPill}>
+            <Text style={styles.softPillText}>{ATTENDANCE_LABEL[selectedKind]}</Text>
+          </View>
+        </View>
         {selectedEvents.length === 0 && selectedAssignments.length === 0 && (
           <Text style={styles.note}>予定はありません。</Text>
         )}
         {selectedEvents.map((e, i) => (
-          <Text key={i} style={styles.noteDark}>
-            [{e.chip}] {e.title}
-            {e.time ? ` ${e.time}` : ''}
-            {e.place ? ` ・ ${e.place}` : ''}
-          </Text>
+          <View key={i} style={styles.detailRow}>
+            <View style={[styles.detailBar, { backgroundColor: e.chip === '個人' ? Colors.success : Colors.blue }]} />
+            <View style={styles.detailMain}>
+              <Text style={styles.noteDark}>{e.title}</Text>
+              <Text style={styles.note}>
+                {e.chip}
+                {e.time ? ` ・ ${e.time}` : ''}
+                {e.place ? ` ・ ${e.place}` : ''}
+              </Text>
+            </View>
+          </View>
         ))}
         {selectedAssignments.map((a) => (
-          <Text key={a.id} style={styles.noteDark}>
-            [課題] {a.subject ? `${a.subject}：` : ''}
-            {a.title}（今日まで）
-          </Text>
+          <View key={a.id} style={styles.detailRow}>
+            <View style={[styles.detailBar, { backgroundColor: Colors.danger }]} />
+            <View style={styles.detailMain}>
+              <Text style={styles.noteDark}>
+                {a.subject ? `${a.subject}：` : ''}
+                {a.title}
+              </Text>
+              <Text style={styles.note}>課題の期限（今日まで）</Text>
+            </View>
+          </View>
         ))}
       </View>
 
@@ -226,8 +283,21 @@ export default function CalendarScreen() {
         <View key={event.key} style={styles.card}>
           <View style={styles.rowBetween}>
             <Text style={styles.date}>{dateLabel(event.date)}</Text>
-            <View style={styles.kindChip}>
-              <Text style={styles.kindText}>{event.chip}</Text>
+            <View
+              style={[
+                styles.kindChip,
+                event.chip === '個人' && { backgroundColor: Colors.successSoft },
+                event.chip === '準備' && { backgroundColor: Colors.accentSoft },
+                event.chip !== '個人' && event.chip !== '準備' && { backgroundColor: Colors.blueSoft },
+              ]}>
+              <Text
+                style={[
+                  styles.kindText,
+                  event.chip === '個人' && { color: Colors.success },
+                  event.chip !== '個人' && event.chip !== '準備' && { color: Colors.blue },
+                ]}>
+                {event.chip}
+              </Text>
             </View>
           </View>
           <Text style={styles.title}>{event.title}</Text>
@@ -258,37 +328,57 @@ const styles = StyleSheet.create({
   rowGap: { flexDirection: 'row', gap: Spacing.md },
   linkText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
   addButton: {
-    borderWidth: 1,
-    borderColor: Colors.accent,
-    borderRadius: Radius.md,
+    borderRadius: Radius.pill,
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    backgroundColor: Colors.accentSoft,
+    backgroundColor: Colors.dark,
   },
-  addButtonText: { color: Colors.accent, fontSize: FontSize.body, fontWeight: '600' },
+  addButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '700' },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.lg,
-    gap: Spacing.xs,
+    padding: Spacing.xl,
+    gap: Spacing.sm,
     ...Shadow,
   },
   cardTitle: { fontSize: FontSize.lead, fontWeight: '600', color: Colors.text },
   weekRow: { flexDirection: 'row' },
   weekCell: { width: '14.28%', textAlign: 'center', fontSize: FontSize.caption, color: Colors.subText, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: '14.28%', paddingVertical: 6, alignItems: 'center', borderRadius: Radius.sm, minHeight: 44 },
-  cellSelected: { backgroundColor: Colors.accentSoft },
+  cell: { width: '14.28%', paddingVertical: 6, alignItems: 'center', borderRadius: Radius.md, minHeight: 46 },
+  cellSelected: { backgroundColor: Colors.accent },
   cellDay: { fontSize: FontSize.small, color: Colors.text },
   cellToday: { color: Colors.accent, fontWeight: '700' },
   cellSchool: { textDecorationLine: 'underline' },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 2, height: 6 },
+  navCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.subBackground,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navArrow: { fontSize: 22, color: Colors.text, fontWeight: '600', lineHeight: 24 },
+  todayPill: { backgroundColor: Colors.accentSoft, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, justifyContent: 'center' },
+  todayPillText: { fontSize: FontSize.small, color: Colors.accent, fontWeight: '700' },
+  weekSun: { color: '#E5A3AC' },
+  weekSat: { color: Colors.blue },
+  cellDaySelected: { color: '#FFFFFF', fontWeight: '700' },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md, marginTop: Spacing.xs },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  legendText: { fontSize: FontSize.caption, color: Colors.subText },
+  softPill: { backgroundColor: Colors.accentSoft, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: 3 },
+  softPillText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
+  detailRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'stretch' },
+  detailBar: { width: 4, borderRadius: 2 },
+  detailMain: { flex: 1, gap: 1 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   noteDark: { fontSize: FontSize.body, color: Colors.text },
   date: { fontSize: FontSize.small, color: Colors.subText },
-  kindChip: { backgroundColor: Colors.accentSoft, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
+  kindChip: { backgroundColor: Colors.accentSoft, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: 3 },
   kindText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '600' },
   title: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text },
   note: { fontSize: FontSize.small, color: Colors.subText },
@@ -301,11 +391,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: FontSize.body,
     color: Colors.text,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.subBackground,
   },
-  primaryButton: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
+  primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
   primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
   error: { color: Colors.danger, fontSize: FontSize.small },
   deleteText: { color: Colors.danger, fontSize: FontSize.small, marginTop: Spacing.xs },
   footer: { fontSize: FontSize.caption, color: Colors.subText, textAlign: 'center', marginTop: Spacing.md, lineHeight: 18 },
 });
+

@@ -1,3 +1,4 @@
+import { SymbolView } from 'expo-symbols';
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -114,7 +115,12 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>プロフィール</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <SymbolView name={{ ios: 'person.crop.circle.fill', android: 'person', web: 'person' }} tintColor={Colors.accent} size={18} />
+          </View>
+          <Text style={styles.cardTitle}>プロフィール</Text>
+        </View>
         <Text style={styles.label}>名前（任意）</Text>
         <TextInput
           style={styles.input}
@@ -217,7 +223,12 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>通知</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <SymbolView name={{ ios: 'bell.fill', android: 'notifications', web: 'notifications' }} tintColor={Colors.accent} size={18} />
+          </View>
+          <Text style={styles.cardTitle}>通知</Text>
+        </View>
         <Text style={styles.note}>
           課題の期限（前日20時・当日8時）、行事・予定（前日18時）、時間割変更（前日20時と登録時）を、この端末のローカル通知で知らせます。
         </Text>
@@ -243,7 +254,12 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>コミュニティ・データ</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <SymbolView name={{ ios: 'person.3.fill', android: 'groups', web: 'groups' }} tintColor={Colors.accent} size={18} />
+          </View>
+          <Text style={styles.cardTitle}>コミュニティ・データ</Text>
+        </View>
         <Link href="/community" asChild>
           <Pressable style={styles.rowBetween}>
             <Text style={styles.bodyText}>コミュニティ（みんなの掲示板）</Text>
@@ -265,7 +281,12 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>バックアップ</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <SymbolView name={{ ios: 'externaldrive.fill', android: 'hard_drive', web: 'hard_drive' }} tintColor={Colors.accent} size={18} />
+          </View>
+          <Text style={styles.cardTitle}>バックアップ</Text>
+        </View>
         <Text style={styles.note}>
           プロフィール・科目・ゼミ・課題・予定など、この端末のデータを1つのコードにまとめます。機種変更や再インストールのときに、「データの取り込み」画面から復元できます。
         </Text>
@@ -276,7 +297,12 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>アプリ情報</Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <SymbolView name={{ ios: 'info.circle.fill', android: 'info', web: 'info' }} tintColor={Colors.accent} size={18} />
+          </View>
+          <Text style={styles.cardTitle}>アプリ情報</Text>
+        </View>
         <Text style={styles.note}>英心アプリ（非公式） バージョン 1.0.0</Text>
         <Text style={styles.note}>
           このアプリは生徒有志による非公式アプリです。学校公式のものではなく、学校との提携・公式認定を受けたものではありません。
@@ -295,11 +321,20 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     gap: Spacing.sm,
     ...Shadow,
   },
-  cardTitle: { fontSize: FontSize.lead, fontWeight: '600', color: Colors.text },
+  cardTitle: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  titleIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   label: { fontSize: FontSize.small, color: Colors.subText, marginTop: Spacing.sm },
   input: {
     borderWidth: 1,
@@ -309,7 +344,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: FontSize.body,
     color: Colors.text,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.subBackground,
   },
   dayRow: { flexDirection: 'row', gap: Spacing.sm },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
@@ -331,12 +366,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     alignItems: 'center',
   },
-  dayChipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
+  dayChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   dayChipText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
-  dayChipTextActive: { color: Colors.accent },
+  dayChipTextActive: { color: '#FFFFFF' },
   saveButton: {
-    backgroundColor: Colors.accent,
-    borderRadius: Radius.md,
+    backgroundColor: Colors.dark,
+    borderRadius: Radius.pill,
     paddingVertical: Spacing.md,
     alignItems: 'center',
     marginTop: Spacing.md,

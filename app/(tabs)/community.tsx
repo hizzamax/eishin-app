@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: Colors.accent },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   bodyText: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
-  primaryButton: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.xs },
+  primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.xs },
   primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   error: { color: Colors.danger, fontSize: FontSize.small, lineHeight: 20 },

@@ -1,3 +1,4 @@
+import { SymbolView } from 'expo-symbols';
 import { Link } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -90,26 +91,25 @@ export default function TimetableScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Link href="/community" asChild>
-        <Pressable style={styles.shareButton}>
-          <Text style={styles.shareButtonText}>コミュニティで共有・見る（みんなの掲示板）</Text>
-        </Pressable>
-      </Link>
-      <View style={styles.dayRow}>
+      <View style={styles.segment}>
         {DAY_TABS.map((day) => (
           <Pressable
             key={day}
             onPress={() => setSelected(day)}
-            style={[styles.dayChip, selected === day && styles.dayChipActive]}>
-            <Text style={[styles.dayChipText, selected === day && styles.dayChipTextActive]}>{day}</Text>
+            style={[styles.segmentChip, selected === day && styles.segmentChipActive]}>
+            <Text style={[styles.segmentText, selected === day && styles.segmentTextActive]}>{day}</Text>
           </Pressable>
         ))}
       </View>
 
       {!isDay ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{selected}曜日は授業日ではありません</Text>
-          <Text style={styles.note}>{FREE_DAYS_NOTE}</Text>
+        <View style={[styles.card, styles.emptyCard]}>
+          <View style={styles.emptyIcon}>
+            <SymbolView name={{ ios: 'moon.zzz.fill', android: 'bedtime', web: 'bedtime' }} tintColor={Colors.accent} size={26} />
+          </View>
+          <Text style={styles.cardTitle}>{selected}曜日は授業がありません</Text>
+          <Text style={[styles.note, styles.centerText]}>{FREE_DAYS_NOTE}</Text>
+          <Text style={[styles.note, styles.centerText]}>ゼミがある日は、この下にゼミが表示されます。</Text>
         </View>
       ) : (
         <View style={styles.card}>
@@ -125,7 +125,7 @@ export default function TimetableScreen() {
                     setEditingSubjectIdx(editingSubjectIdx === i - 1 ? null : i - 1);
                     setSubjectDraft(subject ?? '');
                   }}
-                  style={styles.row}>
+                  style={styles.lessonRow}>
                   <Text style={styles.time}>
                     {period.start}–{period.end}
                   </Text>
@@ -217,7 +217,7 @@ export default function TimetableScreen() {
                   setEditingPeriod(editingPeriod === row.period.label ? null : row.period.label);
                   setSubjectInput(row.subject ?? '');
                 }}
-                style={styles.row}>
+                style={styles.lessonRow}>
                 <Text style={styles.time}>
                   {row.period.start}–{row.period.end}
                 </Text>
@@ -361,6 +361,12 @@ export default function TimetableScreen() {
           </View>
         ))}
       </View>
+
+      <Link href="/community" asChild>
+        <Pressable style={styles.bottomLink}>
+          <Text style={styles.bottomLinkText}>時間割を掲示板で共有・見る ›</Text>
+        </Pressable>
+      </Link>
     </ScrollView>
   );
 }
@@ -369,15 +375,30 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.subBackground },
   content: { padding: Spacing.lg, gap: Spacing.lg },
   heading: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
-  shareButton: {
-    borderWidth: 1,
-    borderColor: Colors.accent,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    backgroundColor: Colors.accentSoft,
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: Colors.subBackground,
+    borderRadius: Radius.pill,
+    padding: 4,
+    gap: 4,
   },
-  shareButtonText: { color: Colors.accent, fontSize: FontSize.body, fontWeight: '600' },
+  segmentChip: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radius.pill, alignItems: 'center' },
+  segmentChipActive: { backgroundColor: Colors.accent, shadowColor: Colors.accent, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  segmentText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
+  segmentTextActive: { color: '#FFFFFF', fontWeight: '700' },
+  emptyCard: { alignItems: 'center', paddingVertical: Spacing.xxl },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerText: { textAlign: 'center' },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
+  bottomLink: { alignItems: 'center', paddingVertical: Spacing.sm },
+  bottomLinkText: { fontSize: FontSize.small, color: Colors.accent, fontWeight: '600' },
   dayRow: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
   dayChip: {
     flex: 1,
@@ -397,25 +418,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     alignItems: 'center',
   },
-  dayChipActive: { backgroundColor: Colors.accentSoft, borderColor: Colors.accent },
+  dayChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   dayChipText: { fontSize: FontSize.body, color: Colors.subText, fontWeight: '600' },
   dateChipText: { fontSize: FontSize.small, color: Colors.subText, fontWeight: '600' },
-  dayChipTextActive: { color: Colors.accent },
+  dayChipTextActive: { color: '#FFFFFF' },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     gap: Spacing.md,
     ...Shadow,
   },
-  cardTitle: { fontSize: FontSize.lead, fontWeight: '600', color: Colors.text },
+  cardTitle: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
   row: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.md },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   time: { fontSize: FontSize.small, color: Colors.subText, width: 96 },
   label: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text, width: 36 },
-  subject: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
+  subject: { fontSize: FontSize.body, color: Colors.text, flex: 1, fontWeight: '600' },
   subjectDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center' },
   changedBadge: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
   note: { fontSize: FontSize.small, color: Colors.subText },
@@ -429,15 +450,15 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     fontSize: FontSize.body,
     color: Colors.text,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.subBackground,
   },
-  smallButton: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },
+  smallButton: { borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, backgroundColor: Colors.card },
   smallButtonText: { fontSize: FontSize.small, color: Colors.text },
   smallButtonDanger: { fontSize: FontSize.small, color: Colors.danger },
   formLabel: { fontSize: FontSize.small, color: Colors.subText },
   timeInput: { flex: 1 },
   error: { color: Colors.danger, fontSize: FontSize.small },
-  primaryButton: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center' },
+  primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center' },
   primaryButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
   ghostButton: { paddingVertical: Spacing.sm, alignItems: 'center' },
   ghostButtonText: { color: Colors.subText, fontSize: FontSize.body },
