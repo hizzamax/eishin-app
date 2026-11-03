@@ -9,6 +9,7 @@ import { applyExceptions, upcomingExceptions, useExceptions } from '@/lib/except
 import { useProfile } from '@/lib/profile';
 import { lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
 import { confirmAction } from '@/lib/confirm';
+import { TimeField } from '@/components/Pickers';
 import { subjectColor } from '@/lib/subjectColor';
 import { effectiveSubjects, isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiForWeekday, type ZemiEntry } from '@/lib/zemi';
@@ -333,21 +334,18 @@ export default function TimetableScreen() {
           ))}
         </View>
         <View style={styles.row}>
-          <TextInput
-            style={[styles.input, styles.timeInput]}
+          <TimeField
+            style={styles.timeInput}
             value={zemiDraft.start}
-            onChangeText={(start) => setZemiDraft({ ...zemiDraft, start })}
-            placeholder="開始 15:00"
-            placeholderTextColor={Colors.subText}
-            autoCapitalize="none"
+            onChange={(start) => setZemiDraft({ ...zemiDraft, start })}
+            placeholder="開始"
           />
-          <TextInput
-            style={[styles.input, styles.timeInput]}
+          <Text style={styles.timeSep}>〜</Text>
+          <TimeField
+            style={styles.timeInput}
             value={zemiDraft.end}
-            onChangeText={(end) => setZemiDraft({ ...zemiDraft, end })}
-            placeholder="終了 16:00"
-            placeholderTextColor={Colors.subText}
-            autoCapitalize="none"
+            onChange={(end) => setZemiDraft({ ...zemiDraft, end })}
+            placeholder="終了"
           />
         </View>
         <Text style={styles.formLabel}>場所（任意）</Text>
@@ -489,7 +487,8 @@ const styles = StyleSheet.create({
   smallButtonText: { fontSize: FontSize.small, color: Colors.text },
   smallButtonDanger: { fontSize: FontSize.small, color: Colors.danger },
   formLabel: { fontSize: FontSize.small, color: Colors.subText },
-  timeInput: { flex: 1 },
+  timeInput: { flex: 1, minWidth: 0 },
+  timeSep: { fontSize: FontSize.body, color: Colors.subText, alignSelf: 'center' },
   error: { color: Colors.danger, fontSize: FontSize.small },
   primaryButton: { backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingVertical: Spacing.md, alignItems: 'center' },
   primaryButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },

@@ -5,11 +5,11 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { EVENTS, type SchoolEvent } from '@/data/seed';
 import { isValidDateKey, useAssignments } from '@/lib/assignments';
-import { ATTENDANCE_LABEL, effectiveKind, useAttendance } from '@/lib/attendance';
 import { confirmAction } from '@/lib/confirm';
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
-import { toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
+import { DateField } from '@/components/Pickers';
+import { isClassDay, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
 
 const KIND_LABEL: Record<SchoolEvent['kind'], string> = {
   event: '行事',
@@ -35,7 +35,6 @@ function dateLabel(dateKey: string): string {
 export default function CalendarScreen() {
   const { items: personal, add, remove } = usePersonalEvents();
   const profile = useProfile();
-  const { map: attendanceMap } = useAttendance();
   const { items: assignments } = useAssignments();
   const today = useMemo(() => new Date(), []);
   const classDays = profile?.classDays ?? ['月', '水', '金'];
@@ -60,7 +59,7 @@ export default function CalendarScreen() {
     [assignments],
   );
   const selectedDate = useMemo(() => new Date(`${selectedKey}T00:00:00`), [selectedKey]);
-  const selectedKind = effectiveKind(selectedDate, classDays, attendanceMap);
+  const selectedIsSchool = isClassDay(selectedDate, classDays);
   const selectedEvents = [
     ...EVENTS.filter((e) => e.date === selectedKey).map((e) => ({ title: e.title, time: e.time, place: e.place, chip: KIND_LABEL[e.kind], id: null as string | null })),
     ...personal
@@ -105,7 +104,7 @@ export default function CalendarScreen() {
       return;
     }
     if (!isValidDateKey(date)) {
-      setError('日付は 2026-11-10 の形式で入力してください');
+      setError('日付を選択してください');
       return;
     }
     add({ date, time: time.trim(), title: title.trim(), place: place.trim() });
@@ -124,11 +123,6 @@ export default function CalendarScreen() {
           <Link href="/import" asChild>
             <Pressable>
               <Text style={styles.linkText}>取り込み</Text>
-            </Pressable>
-          </Link>
-          <Link href="/attendance" asChild>
-            <Pressable>
-              <Text style={styles.linkText}>登校予定</Text>
             </Pressable>
           </Link>
         </View>
@@ -171,7 +165,7 @@ export default function CalendarScreen() {
             const d = new Date(`${key}T00:00:00`);
             const isToday = key === toDateKey(today);
             const isSelected = key === selectedKey;
-            const isSchool = effectiveKind(d, classDays, attendanceMap) === 'school';
+            const isSchool = isClassDay(d, classDays);
             return (
               <Pressable
                 key={key}
@@ -225,9 +219,11 @@ export default function CalendarScreen() {
       <View style={styles.card}>
         <View style={styles.rowBetween}>
           <Text style={styles.cardTitle}>{dateLabel(selectedKey)}</Text>
-          <View style={styles.softPill}>
-            <Text style={styles.softPillText}>{ATTENDANCE_LABEL[selectedKind]}</Text>
-          </View>
+          {selectedIsSchool && (
+            <View style={styles.softPill}>
+              <Text style={styles.softPillText}>登校日</Text>
+            </View>
+          )}
         </View>
         {selectedEvents.length === 0 && selectedAssignments.length === 0 && (
           <Text style={styles.note}>予定はありません。</Text>
@@ -279,8 +275,8 @@ export default function CalendarScreen() {
         <View style={styles.card}>
           <Text style={styles.label}>タイトル *</Text>
           <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="例：図書館で勉強" placeholderTextColor={Colors.subText} />
-          <Text style={styles.label}>日付 *（YYYY-MM-DD）</Text>
-          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="2026-11-10" placeholderTextColor={Colors.subText} autoCapitalize="none" />
+          <Text style={styles.label}>日付 *</Text>
+          <DateField value={date} onChange={setDate} placeholder="日付を選択" />
           <Text style={styles.label}>時間（任意）</Text>
           <TextInput style={styles.input} value={time} onChangeText={setTime} placeholder="例：14:00-16:00" placeholderTextColor={Colors.subText} />
           <Text style={styles.label}>場所（任意）</Text>

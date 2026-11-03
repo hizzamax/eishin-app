@@ -8,12 +8,10 @@ import { Colors, FontSize, HeroGradient, HeroShadow, Radius, Shadow, Spacing } f
 import { FREE_DAYS_NOTE } from '@/data/seed';
 import { useAnnouncements } from '@/lib/announcements';
 import { daysUntil, urgentAssignments, useAssignments } from '@/lib/assignments';
-import { effectiveKind } from '@/lib/attendance';
-import { useAttendance } from '@/lib/attendance';
 import { applyExceptions, upcomingExceptions, useExceptions, type AppliedRow } from '@/lib/exceptions';
 import { usePersonalEvents } from '@/lib/personalEvents';
 import { useProfile } from '@/lib/profile';
-import { formatDate, hasSampleSubjects, lessonsFor, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
+import { formatDate, hasSampleSubjects, isClassDay, lessonsFor, toDateKey, upcomingEvents, weekdayLabel } from '@/lib/school';
 import { subjectColor } from '@/lib/subjectColor';
 import { isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiFor } from '@/lib/zemi';
@@ -42,7 +40,6 @@ function greeting(hour: number): string {
 export default function HomeScreen() {
   const profile = useProfile();
   const { items: assignments } = useAssignments();
-  const { map: attendanceMap } = useAttendance();
   const { items: exceptions } = useExceptions();
   const { items: personalEvents } = usePersonalEvents();
   const { items: zemiItems } = useZemi();
@@ -58,17 +55,17 @@ export default function HomeScreen() {
     }, []),
   );
   const classDays = profile?.classDays ?? ['月', '水', '金'];
-  const kind = effectiveKind(now, classDays, attendanceMap);
+  const isSchoolToday = isClassDay(now, classDays);
 
   const nextSchoolDay = useMemo(() => {
     for (let i = 1; i <= 14; i++) {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
-      if (effectiveKind(d, classDays, attendanceMap) === 'school') return d;
+      if (isClassDay(d, classDays)) return d;
     }
     return null;
-  }, [now, classDays, attendanceMap]);
+  }, [now, classDays]);
 
-  const rawLessons = kind === 'school' ? lessonsFor(now, classDays, subjectsMap) : null;
+  const rawLessons = isSchoolToday ? lessonsFor(now, classDays, subjectsMap) : null;
   const lessons = rawLessons ? applyExceptions(rawLessons, now, exceptions) : null;
   const upcoming = lessons ? nextFromRows(now, lessons) : null;
 
@@ -101,9 +98,9 @@ export default function HomeScreen() {
     return { ...first, inDays: Math.round((target.getTime() - base.getTime()) / 86400000) };
   }, [now, personalEvents]);
 
-  const kindLabel = kind === 'school' ? '登校日' : kind === 'home' ? '自宅学習' : 'お休み';
+  const kindLabel = isSchoolToday ? '登校日' : 'お休み';
   const heroMain =
-    kind === 'school'
+    isSchoolToday
       ? upcoming
         ? `次の授業は ${upcoming.row.subject ?? upcoming.row.period.label}`
         : '今日の授業は終わりました'
@@ -111,13 +108,11 @@ export default function HomeScreen() {
         ? `次の登校日は ${nextSchoolDay.getMonth() + 1}月${nextSchoolDay.getDate()}日（${weekdayLabel(nextSchoolDay)}）`
         : '直近14日間に登校日はありません';
   const heroSub =
-    kind === 'school'
+    isSchoolToday
       ? upcoming
         ? `${upcoming.row.period.label} ${upcoming.row.period.start}〜 ・ あと${upcoming.inMinutes}分`
         : 'おつかれさまでした'
-      : kind === 'home'
-        ? '今日は自宅学習の日です'
-        : FREE_DAYS_NOTE;
+      : FREE_DAYS_NOTE;
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
@@ -144,11 +139,6 @@ export default function HomeScreen() {
           </View>
           <Text style={styles.heroMain}>{heroMain}</Text>
           <Text style={styles.heroSub}>{heroSub}</Text>
-          <Link href="/attendance" asChild>
-            <Pressable style={styles.heroButton}>
-              <Text style={styles.heroButtonText}>登校予定を変更する</Text>
-            </Pressable>
-          </Link>
         </LinearGradient>
       </View>
 
@@ -158,12 +148,6 @@ export default function HomeScreen() {
           <Pressable style={styles.quickItem}>
             <SymbolView name={{ ios: 'checklist', android: 'checklist', web: 'checklist' }} tintColor={Colors.accent} size={22} />
             <Text style={styles.quickLabel}>課題</Text>
-          </Pressable>
-        </Link>
-        <Link href="/attendance" asChild>
-          <Pressable style={styles.quickItem}>
-            <SymbolView name={{ ios: 'calendar.badge.clock', android: 'event_available', web: 'event_available' }} tintColor={Colors.blue} size={22} />
-            <Text style={styles.quickLabel}>登校予定</Text>
           </Pressable>
         </Link>
         <Link href="/announcements" asChild>
@@ -375,15 +359,6 @@ const styles = StyleSheet.create({
   heroPillText: { fontSize: FontSize.caption, color: Colors.white, fontWeight: '700' },
   heroMain: { fontSize: FontSize.title, fontWeight: '700', color: Colors.white, lineHeight: 30 },
   heroSub: { fontSize: FontSize.small, color: 'rgba(255,255,255,0.92)' },
-  heroButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.white,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  heroButtonText: { fontSize: FontSize.small, color: Colors.accent, fontWeight: '700' },
   quickRow: { flexDirection: 'row', gap: Spacing.md },
   quickItem: {
     flex: 1,

@@ -18,6 +18,12 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    id: 'picker-update-20261103',
+    date: '2026-11-03',
+    title: '日付・時刻の入力と登校予定について',
+    body: '課題の期限や予定の日付、ゼミの時間が、手入力からタップで選ぶ方式に変わりました。あわせて「登校予定」の機能は終了しました。登校日はこれまで通り、設定した授業曜日をもとにホームとカレンダーに表示されます。',
+  },
+  {
     id: 'review-fixes-20261103',
     date: '2026-11-03',
     title: '掲示板と全体の使い勝手を改善しました',

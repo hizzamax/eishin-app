@@ -63,7 +63,6 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="assignments" options={{ title: '課題' }} />
-        <Stack.Screen name="attendance" options={{ title: '登校予定' }} />
         <Stack.Screen name="announcements" options={{ title: 'お知らせ' }} />
         <Stack.Screen name="import" options={{ title: 'データの取り込み' }} />
       </Stack>

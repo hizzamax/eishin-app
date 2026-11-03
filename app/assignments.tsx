@@ -12,6 +12,7 @@ import {
   type AssignmentStatus,
 } from '@/lib/assignments';
 import { confirmAction } from '@/lib/confirm';
+import { DateField } from '@/components/Pickers';
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
   todo: '未着手',
@@ -62,7 +63,7 @@ export default function AssignmentsScreen() {
       return;
     }
     if (!isValidDateKey(draft.dueDate)) {
-      setError('提出期限は 2026-11-10 の形式で入力してください');
+      setError('提出期限を選択してください');
       return;
     }
     if (editingId) {
@@ -117,14 +118,11 @@ export default function AssignmentsScreen() {
             placeholder="例：数学II"
             placeholderTextColor={Colors.subText}
           />
-          <Text style={styles.label}>提出期限 *（YYYY-MM-DD）</Text>
-          <TextInput
-            style={styles.input}
+          <Text style={styles.label}>提出期限 *</Text>
+          <DateField
             value={draft.dueDate}
-            onChangeText={(dueDate) => setDraft({ ...draft, dueDate })}
-            placeholder="2026-11-10"
-            placeholderTextColor={Colors.subText}
-            autoCapitalize="none"
+            onChange={(dueDate) => setDraft({ ...draft, dueDate })}
+            placeholder="日付を選択"
           />
           <Text style={styles.label}>内容・メモ</Text>
           <TextInput
