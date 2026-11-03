@@ -64,4 +64,4 @@ SPEC-v2.md のフェーズ分けに従う。
 - [x] ローカル保存（AsyncStorage にプロフィールを永続化）
 - [x] TypeScript 型チェック通過（`npx tsc --noEmit` エラーなし。テンプレート付属 Themed.tsx の React 19 型エラーは修正済み）
 - [x] Android バンドル生成の成功を確認（`npx expo export --platform android`、1540モジュール）
-- [ ] 実機・シミュレータでの画面表示確認（未実施。次は Expo Go でQR読み取り確認）
+- [x] 実機での画面表示確認（2026-11-03、菊田さんのAndroid＋Expo Goで確認。LAN直接接続はつながらず、ngrokトンネル経由で接続）

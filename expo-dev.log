@@ -1,0 +1,10 @@
+Starting project at C:\Users\koki\eishin-app
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+
+Waiting on http://localhost:8081
+
+Logs for your project will appear below.
+λ Bundled 11539ms node_modules\@expo\router-server\node\render.js (1291 modules)
+Web Bundled 5248ms node_modules\expo-router\entry.js (831 modules)
+λ Bundled 343ms app\(tabs)\index.tsx (62 modules)

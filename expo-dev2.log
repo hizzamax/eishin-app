@@ -1,0 +1,4 @@
+Starting project at C:\Users\koki\eishin-app
+Starting Metro Bundler
+
+CommandError: Couldn't create a signed tunnel URL for this project. You're not logged in to your Expo account — run 'npx expo login'. Run 'npx expo start --tunnel ngrok' to use an ngrok tunnel instead.
