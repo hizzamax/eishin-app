@@ -17,6 +17,12 @@ export type Announcement = {
 
 export const ANNOUNCEMENTS: Announcement[] = [
   {
+    id: 'design-refresh',
+    date: '2026-11-03',
+    title: 'デザインを新しくしました',
+    body: '白基調×コーラルオレンジのプレミアムなデザインに刷新しました。ホーム画面は今日の状態がひと目で分かる大きなカードに、掲示板は下のタブに移動しています。',
+  },
+  {
     id: 'polish-update',
     date: '2026-11-03',
     title: '科目の編集・カレンダーの月表示・バックアップに対応しました',

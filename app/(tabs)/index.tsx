@@ -1,8 +1,10 @@
+import { SymbolView } from 'expo-symbols';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
+import { Colors, FontSize, HeroGradient, HeroShadow, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { FREE_DAYS_NOTE } from '@/data/seed';
 import { useAnnouncements } from '@/lib/announcements';
 import { daysUntil, urgentAssignments, useAssignments } from '@/lib/assignments';
@@ -29,6 +31,12 @@ function nextFromRows(now: Date, rows: AppliedRow[]): { row: AppliedRow; inMinut
     if (start > nowMin) return { row, inMinutes: start - nowMin };
   }
   return null;
+}
+
+function greeting(hour: number): string {
+  if (hour < 11) return 'おはようございます';
+  if (hour < 18) return 'こんにちは';
+  return 'こんばんは';
 }
 
 export default function HomeScreen() {
@@ -76,78 +84,147 @@ export default function HomeScreen() {
     return { ...first, inDays: Math.round((target.getTime() - base.getTime()) / 86400000) };
   }, [now, personalEvents]);
 
-  const todayTitle =
-    kind === 'school' ? '今日は登校日です' : kind === 'home' ? '今日は自宅学習日です' : '今日はお休みです';
+  const kindLabel = kind === 'school' ? '登校日' : kind === 'home' ? '自宅学習' : 'お休み';
+  const heroMain =
+    kind === 'school'
+      ? upcoming
+        ? `次の授業は ${upcoming.row.subject ?? upcoming.row.period.label}`
+        : '今日の授業は終わりました'
+      : nextSchoolDay
+        ? `次の登校日は ${nextSchoolDay.getMonth() + 1}月${nextSchoolDay.getDate()}日（${weekdayLabel(nextSchoolDay)}）`
+        : 'しばらく登校日はありません';
+  const heroSub =
+    kind === 'school'
+      ? upcoming
+        ? `${upcoming.row.period.label} ${upcoming.row.period.start}〜 ・ あと${upcoming.inMinutes}分`
+        : 'おつかれさまでした'
+      : kind === 'home'
+        ? '登校予定で変更した内容が反映されています'
+        : FREE_DAYS_NOTE;
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.date}>{formatDate(now)}</Text>
-      <Text style={styles.appName}>英心アプリ（非公式）</Text>
-      <Text style={styles.profileLine}>
-        {profile ? `${profile.course} ${profile.className}` : '読み込み中…'}
-        {profile?.name ? ` ・ ${profile.name}さん` : ''}
-      </Text>
+      {/* ヘッダー */}
+      <View style={styles.header}>
+        <Text style={styles.appName}>英心アプリ（非公式）</Text>
+        <Text style={styles.greeting}>
+          {greeting(now.getHours())}
+          {profile?.name ? `、${profile.name}さん` : ''}
+        </Text>
+        <Text style={styles.dateLine}>
+          {formatDate(now)}
+          {profile ? ` ・ ${profile.course} ${profile.className}` : ''}
+        </Text>
+      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{todayTitle}</Text>
-        {kind !== 'school' && <Text style={styles.note}>{kind === 'off' ? FREE_DAYS_NOTE : '登校予定で変更した内容が反映されています'}</Text>}
-        {lessons ? (
-          <View style={styles.lessonList}>
-            {lessons.map((row) => (
-              <View key={row.period.label} style={styles.lessonRow}>
-                <Text style={styles.lessonTime}>
-                  {row.period.start}–{row.period.end}
-                </Text>
-                <Text style={styles.lessonLabel}>{row.period.label}</Text>
-                {row.subject ? (
-                  <View style={[styles.subjectDot, { backgroundColor: subjectColor(row.subject) }]} />
-                ) : null}
-                <Text style={styles.lessonSubject}>
-                  {row.changed && row.subject === null
-                    ? '休講'
-                    : (row.subject ?? (row.period.label === 'HR' ? '' : '未設定'))}
-                </Text>
-                {row.changed && <Text style={styles.changedBadge}>変更</Text>}
-              </View>
-            ))}
+      {/* ヒーローカード：今日の状態 */}
+      <View style={styles.heroWrap}>
+        <LinearGradient colors={HeroGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+          <View style={styles.heroDeco1} />
+          <View style={styles.heroDeco2} />
+          <View style={styles.heroPill}>
+            <Text style={styles.heroPillText}>{kindLabel}</Text>
           </View>
-        ) : null}
-        {lessons && hasSampleSubjects(now) && !isCustomDay(subjectsMap, weekdayLabel(now)) && (
-          <Text style={styles.note}>※ 科目はサンプルです（時間割タブで自分の科目に変更できます）</Text>
-        )}
-        {kind !== 'school' && nextSchoolDay && (
-          <Text style={styles.note}>
-            次の登校日：{nextSchoolDay.getMonth() + 1}月{nextSchoolDay.getDate()}日（{weekdayLabel(nextSchoolDay)}）
-          </Text>
-        )}
-        {upcoming && (
-          <Text style={styles.nextLesson}>
-            次の授業：{upcoming.row.period.label}
-            {upcoming.row.subject ? ` ${upcoming.row.subject}` : ''}（あと{upcoming.inMinutes}分）
-          </Text>
-        )}
+          <Text style={styles.heroMain}>{heroMain}</Text>
+          <Text style={styles.heroSub}>{heroSub}</Text>
+          <Link href="/attendance" asChild>
+            <Pressable style={styles.heroButton}>
+              <Text style={styles.heroButtonText}>登校予定を変更する</Text>
+            </Pressable>
+          </Link>
+        </LinearGradient>
+      </View>
+
+      {/* クイックアクション */}
+      <View style={styles.quickRow}>
+        <Link href="/assignments" asChild>
+          <Pressable style={styles.quickItem}>
+            <SymbolView name={{ ios: 'checklist', android: 'checklist', web: 'checklist' }} tintColor={Colors.accent} size={22} />
+            <Text style={styles.quickLabel}>課題</Text>
+          </Pressable>
+        </Link>
         <Link href="/attendance" asChild>
-          <Pressable style={styles.linkButton}>
-            <Text style={styles.linkButtonText}>登校予定を変更する</Text>
+          <Pressable style={styles.quickItem}>
+            <SymbolView name={{ ios: 'calendar.badge.clock', android: 'event_available', web: 'event_available' }} tintColor={Colors.blue} size={22} />
+            <Text style={styles.quickLabel}>登校予定</Text>
+          </Pressable>
+        </Link>
+        <Link href="/community" asChild>
+          <Pressable style={styles.quickItem}>
+            <SymbolView name={{ ios: 'person.3.fill', android: 'groups', web: 'groups' }} tintColor={Colors.accent} size={22} />
+            <Text style={styles.quickLabel}>掲示板</Text>
+          </Pressable>
+        </Link>
+        <Link href="/import" asChild>
+          <Pressable style={styles.quickItem}>
+            <SymbolView name={{ ios: 'square.and.arrow.down', android: 'file_download', web: 'file_download' }} tintColor={Colors.blue} size={22} />
+            <Text style={styles.quickLabel}>取り込み</Text>
           </Pressable>
         </Link>
       </View>
 
+      {/* 今日の時間割 */}
+      {lessons && (
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.cardTitle}>今日の時間割</Text>
+            <View style={styles.softPill}>
+              <Text style={styles.softPillText}>{weekdayLabel(now)}曜日</Text>
+            </View>
+          </View>
+          <View style={styles.lessonList}>
+            {lessons.map((row) => (
+              <View key={row.period.label} style={styles.lessonRow}>
+                <View style={[styles.subjectDot, { backgroundColor: row.subject ? subjectColor(row.subject) : Colors.border }]} />
+                <View style={styles.lessonMain}>
+                  <Text style={styles.lessonSubject}>
+                    {row.changed && row.subject === null
+                      ? '休講'
+                      : (row.subject ?? (row.period.label === 'HR' ? 'HR' : '未設定'))}
+                  </Text>
+                  <Text style={styles.lessonMeta}>
+                    {row.period.label} ・ {row.period.start}–{row.period.end}
+                  </Text>
+                </View>
+                {row.changed && (
+                  <View style={styles.changedPill}>
+                    <Text style={styles.changedPillText}>変更</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+          {hasSampleSubjects(now) && !isCustomDay(subjectsMap, weekdayLabel(now)) && (
+            <Text style={styles.note}>※ 科目はサンプルです（時間割タブで自分の科目に変更できます）</Text>
+          )}
+        </View>
+      )}
+
+      {/* 今日のゼミ */}
       {todayZemi.length > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>今日のゼミ</Text>
+          <View style={styles.rowBetween}>
+            <Text style={styles.cardTitle}>今日のゼミ</Text>
+            <View style={[styles.softPill, { backgroundColor: Colors.blueSoft }]}>
+              <Text style={[styles.softPillText, { color: Colors.blue }]}>ゼミ</Text>
+            </View>
+          </View>
           {todayZemi.map((z) => (
             <View key={z.id} style={styles.lessonRow}>
-              <Text style={styles.lessonTime}>
-                {z.start}–{z.end}
-              </Text>
-              <Text style={styles.lessonSubject}>{z.name}</Text>
-              {z.place ? <Text style={styles.note}>{z.place}</Text> : null}
+              <View style={[styles.subjectDot, { backgroundColor: Colors.blue }]} />
+              <View style={styles.lessonMain}>
+                <Text style={styles.lessonSubject}>{z.name}</Text>
+                <Text style={styles.lessonMeta}>
+                  {z.start}–{z.end}
+                  {z.place ? ` ・ ${z.place}` : ''}
+                </Text>
+              </View>
             </View>
           ))}
         </View>
       )}
 
+      {/* 期限が近い課題 */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>期限が近い課題</Text>
         {urgent.length === 0 && <Text style={styles.note}>未完了の課題はありません。</Text>}
@@ -159,19 +236,22 @@ export default function HomeScreen() {
                 {a.subject ? `${a.subject}：` : ''}
                 {a.title}
               </Text>
-              <Text style={[styles.assignmentDue, d < 0 && styles.assignmentOverdue]}>
-                {d < 0 ? `${-d}日超過` : d === 0 ? '今日まで' : `あと${d}日`}
-              </Text>
+              <View style={[styles.duePill, d < 0 && styles.duePillOverdue]}>
+                <Text style={[styles.duePillText, d < 0 && styles.duePillTextOverdue]}>
+                  {d < 0 ? `${-d}日超過` : d === 0 ? '今日まで' : `あと${d}日`}
+                </Text>
+              </View>
             </View>
           );
         })}
         <Link href="/assignments" asChild>
-          <Pressable style={styles.linkButton}>
-            <Text style={styles.linkButtonText}>課題を管理する</Text>
+          <Pressable style={styles.darkButton}>
+            <Text style={styles.darkButtonText}>課題を管理する</Text>
           </Pressable>
         </Link>
       </View>
 
+      {/* 直近の時間割変更 */}
       {nearExceptions.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>直近の時間割変更</Text>
@@ -184,22 +264,31 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {/* 次の行事 */}
       {nextEv && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>次の行事・予定</Text>
-          <Text style={styles.eventTitle}>{nextEv.title}</Text>
-          <Text style={styles.note}>
-            {(() => {
-              const d = new Date(`${nextEv.date}T00:00:00`);
-              return `${d.getMonth() + 1}月${d.getDate()}日（${weekdayLabel(d)}）`;
-            })()}
-            {nextEv.time ? ` ${nextEv.time}` : ''}
-            {nextEv.place ? ` ・ ${nextEv.place}` : ''}
-          </Text>
-          <Text style={styles.countdown}>{nextEv.inDays === 0 ? '今日です' : `あと ${nextEv.inDays} 日`}</Text>
+          <View style={styles.eventRow}>
+            <View style={styles.countBox}>
+              <Text style={styles.countNum}>{nextEv.inDays === 0 ? '今日' : nextEv.inDays}</Text>
+              {nextEv.inDays > 0 && <Text style={styles.countUnit}>日後</Text>}
+            </View>
+            <View style={styles.eventMain}>
+              <Text style={styles.eventTitle}>{nextEv.title}</Text>
+              <Text style={styles.note}>
+                {(() => {
+                  const d = new Date(`${nextEv.date}T00:00:00`);
+                  return `${d.getMonth() + 1}月${d.getDate()}日（${weekdayLabel(d)}）`;
+                })()}
+                {nextEv.time ? ` ${nextEv.time}` : ''}
+                {nextEv.place ? ` ・ ${nextEv.place}` : ''}
+              </Text>
+            </View>
+          </View>
         </View>
       )}
 
+      {/* お知らせ */}
       {latestAnnouncement && (
         <View style={styles.card}>
           <View style={styles.rowBetween}>
@@ -227,39 +316,130 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.subBackground },
-  content: { padding: Spacing.lg, gap: Spacing.lg },
-  date: { fontSize: FontSize.small, color: Colors.subText },
-  appName: { fontSize: FontSize.title, fontWeight: '700', color: Colors.text },
-  profileLine: { fontSize: FontSize.body, color: Colors.subText, marginTop: -Spacing.md },
+  content: { padding: Spacing.lg, gap: Spacing.lg, paddingBottom: Spacing.xxl },
+  header: { gap: 2, marginTop: Spacing.sm },
+  appName: { fontSize: FontSize.caption, color: Colors.subText, fontWeight: '600', letterSpacing: 1 },
+  greeting: { fontSize: FontSize.display, fontWeight: '700', color: Colors.text },
+  dateLine: { fontSize: FontSize.small, color: Colors.subText },
+  heroWrap: { borderRadius: Radius.xl, ...HeroShadow },
+  hero: {
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    gap: Spacing.sm,
+    overflow: 'hidden',
+  },
+  heroDeco1: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    top: -70,
+    right: -40,
+  },
+  heroDeco2: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    bottom: -50,
+    left: 30,
+  },
+  heroPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  heroPillText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
+  heroMain: { fontSize: FontSize.title, fontWeight: '700', color: '#FFFFFF', lineHeight: 30 },
+  heroSub: { fontSize: FontSize.small, color: 'rgba(255,255,255,0.92)' },
+  heroButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  heroButtonText: { fontSize: FontSize.small, color: Colors.accent, fontWeight: '700' },
+  quickRow: { flexDirection: 'row', gap: Spacing.md },
+  quickItem: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    gap: Spacing.xs,
+    ...Shadow,
+  },
+  quickLabel: { fontSize: FontSize.caption, color: Colors.text, fontWeight: '600' },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
+    padding: Spacing.xl,
+    gap: Spacing.md,
     ...Shadow,
   },
-  cardTitle: { fontSize: FontSize.lead, fontWeight: '600', color: Colors.text },
-  note: { fontSize: FontSize.small, color: Colors.subText },
-  lessonList: { gap: Spacing.sm, marginTop: Spacing.xs },
-  lessonRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.md },
-  lessonTime: { fontSize: FontSize.small, color: Colors.subText, width: 96 },
-  lessonLabel: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text, width: 36 },
-  lessonSubject: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
-  subjectDot: { width: 8, height: 8, borderRadius: 4, alignSelf: 'center' },
-  changedBadge: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
-  nextLesson: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600', marginTop: Spacing.xs },
-  linkButton: { marginTop: Spacing.xs },
-  linkButtonText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
+  cardTitle: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
+  note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 19 },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  unreadChip: { backgroundColor: Colors.accent, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
-  unreadChipText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
-  assignmentRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.sm },
+  softPill: {
+    backgroundColor: Colors.accentSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 3,
+  },
+  softPillText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
+  lessonList: { gap: Spacing.md },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  subjectDot: { width: 10, height: 10, borderRadius: 5 },
+  lessonMain: { flex: 1, gap: 1 },
+  lessonSubject: { fontSize: FontSize.body, fontWeight: '600', color: Colors.text },
+  lessonMeta: { fontSize: FontSize.caption, color: Colors.subText },
+  changedPill: {
+    backgroundColor: Colors.accentSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+  },
+  changedPillText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
+  assignmentRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   assignmentTitle: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
-  assignmentDue: { fontSize: FontSize.small, color: Colors.subText },
-  assignmentOverdue: { color: Colors.danger, fontWeight: '700' },
+  duePill: {
+    backgroundColor: Colors.accentSoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 3,
+  },
+  duePillText: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
+  duePillOverdue: { backgroundColor: Colors.dangerSoft },
+  duePillTextOverdue: { color: Colors.danger },
+  darkButton: {
+    backgroundColor: Colors.dark,
+    borderRadius: Radius.pill,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  darkButtonText: { fontSize: FontSize.body, color: '#FFFFFF', fontWeight: '700' },
+  linkButton: { marginTop: Spacing.xs },
+  linkButtonText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '700' },
+  unreadChip: { backgroundColor: Colors.accent, borderRadius: Radius.pill, paddingHorizontal: Spacing.md, paddingVertical: 3 },
+  unreadChipText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
+  eventRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  countBox: {
+    backgroundColor: Colors.accentSoft,
+    borderRadius: Radius.md,
+    width: 72,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  countNum: { fontSize: FontSize.display, fontWeight: '700', color: Colors.accent },
+  countUnit: { fontSize: FontSize.caption, color: Colors.accent, fontWeight: '700' },
+  eventMain: { flex: 1, gap: 2 },
   eventTitle: { fontSize: FontSize.lead, fontWeight: '600', color: Colors.text },
-  countdown: { fontSize: FontSize.display, fontWeight: '700', color: Colors.accent },
-  footer: { fontSize: FontSize.caption, color: Colors.subText, textAlign: 'center', marginTop: Spacing.md },
+  footer: { fontSize: FontSize.caption, color: Colors.subText, textAlign: 'center', marginTop: Spacing.sm },
 });
