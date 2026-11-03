@@ -7,14 +7,14 @@ import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { PERIODS, WEEKDAYS, type WeekdayLabel } from '@/data/seed';
 import { applyExceptions, upcomingExceptions, useExceptions } from '@/lib/exceptions';
 import { useProfile } from '@/lib/profile';
-import { freeDayNote, lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
+import { lessonsFor, toDateKey, weekdayLabel } from '@/lib/school';
 import { confirmAction } from '@/lib/confirm';
 import { DateField, TimeField } from '@/components/Pickers';
 import { subjectColor } from '@/lib/subjectColor';
 import { effectiveSubjects, isCustomDay, useSubjects } from '@/lib/subjects';
 import { useZemi, zemiForWeekday, type ZemiEntry } from '@/lib/zemi';
 
-const DAY_TABS: WeekdayLabel[] = ['月', '火', '水', '木', '金', '土'];
+const DAY_TABS: WeekdayLabel[] = ['月', '火', '水', '木', '金', '土', '日'];
 
 function plusOneHour(t: string): string | undefined {
   const m = t.match(/^(\d{1,2}):(\d{2})$/);
@@ -66,7 +66,7 @@ export default function TimetableScreen() {
   // --- ゼミ ---
   const { items: zemiItems, add: addZemi, update: updateZemi, remove: removeZemi } = useZemi();
   const selectedZemi = zemiForWeekday(selected, zemiItems);
-  const [zemiDraft, setZemiDraft] = useState({ name: '', weekday: '火' as WeekdayLabel, start: '', end: '', place: '' });
+  const [zemiDraft, setZemiDraft] = useState({ name: '', weekday: '火' as WeekdayLabel, start: '15:00', end: '', place: '' });
   const [editingZemiId, setEditingZemiId] = useState<string | null>(null);
   const [zemiError, setZemiError] = useState('');
 
@@ -97,7 +97,7 @@ export default function TimetableScreen() {
     if (editingZemiId) updateZemi(editingZemiId, draft);
     else addZemi(draft);
     showNotice(editingZemiId ? 'ゼミを更新しました' : 'ゼミを登録しました');
-    setZemiDraft({ name: '', weekday: '火', start: '', end: '', place: '' });
+    setZemiDraft({ name: '', weekday: '火', start: '15:00', end: '', place: '' });
     setEditingZemiId(null);
     setZemiError('');
   };
@@ -147,9 +147,10 @@ export default function TimetableScreen() {
           <View style={styles.emptyIcon}>
             <SymbolView name={{ ios: 'moon.zzz.fill', android: 'bedtime', web: 'bedtime' }} tintColor={Colors.accent} size={26} />
           </View>
-          <Text style={styles.cardTitle}>{selected}曜日は授業がありません</Text>
-          <Text style={[styles.note, styles.centerText]}>{freeDayNote(selected)}</Text>
-          <Text style={[styles.note, styles.centerText]}>ゼミがある日は、この下にゼミが表示されます。</Text>
+          <Text style={styles.cardTitle}>
+            {selected}曜日は{selected === '土' || selected === '日' ? 'お休みです' : '自由登校日です'}
+          </Text>
+          <Text style={[styles.note, styles.centerText]}>通常授業はありません。ゼミがある日は、この下にゼミが表示されます。</Text>
         </View>
       ) : (
         <View style={styles.card}>
@@ -260,7 +261,7 @@ export default function TimetableScreen() {
 
       {editRows ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{editDateKey} の授業</Text>
+          <Text style={styles.cardTitle}>{editDate.getMonth() + 1}月{editDate.getDate()}日（{weekdayLabel(editDate)}）の授業</Text>
           {editRows.map((row) => (
             <View key={row.period.label}>
               <Pressable
@@ -323,7 +324,7 @@ export default function TimetableScreen() {
         </View>
       ) : (
         <View style={styles.card}>
-          <Text style={styles.note}>{editDateKey} は授業日ではないため、変更できる授業がありません。</Text>
+          <Text style={styles.note}>{editDate.getMonth() + 1}月{editDate.getDate()}日（{weekdayLabel(editDate)}）は授業日ではないため、変更できる授業がありません。</Text>
         </View>
       )}
 
@@ -418,7 +419,7 @@ export default function TimetableScreen() {
           <Pressable
             onPress={() => {
               setEditingZemiId(null);
-              setZemiDraft({ name: '', weekday: '火', start: '', end: '', place: '' });
+              setZemiDraft({ name: '', weekday: '火', start: '15:00', end: '', place: '' });
               setZemiError('');
             }}
             style={styles.ghostButton}>

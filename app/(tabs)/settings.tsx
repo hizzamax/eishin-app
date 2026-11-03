@@ -2,9 +2,11 @@ import { SymbolView } from 'expo-symbols';
 import Constants from 'expo-constants';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createBackupCode } from '@/lib/backup';
+import { confirmAction } from '@/lib/confirm';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { ALL_CLASS_DAY_CANDIDATES, type WeekdayLabel } from '@/data/seed';
@@ -100,6 +102,40 @@ export default function SettingsScreen() {
     } catch {
       setBackupNote('バックアップを作成できませんでした');
     }
+  };
+
+  const [deleteNote, setDeleteNote] = useState('');
+  const onDeleteAll = () => {
+    confirmAction(
+      'データをすべて削除しますか？',
+      'プロフィール・科目・ゼミ・課題・予定・掲示板の自分の投稿など、この端末内のデータをすべて消します。元に戻せません。',
+      () => {
+        void (async () => {
+          await AsyncStorage.multiRemove([
+            'eishin.profile.v1',
+            'eishin.subjects.v1',
+            'eishin.zemi.v1',
+            'eishin.assignments.v1',
+            'eishin.attendance.v1',
+            'eishin.exceptions.v1',
+            'eishin.events.v1',
+            'eishin.announcementReads.v1',
+            'eishin.notifsettings.v1',
+            'eishin.importHistory.v1',
+            'eishin.communityLocal.v1',
+          ]);
+          await cancelAllNotifications();
+          const fresh = await loadProfile();
+          setProfile(fresh);
+          setNotifEnabled(false);
+          setSaved(false);
+          setDirty(false);
+          dirtyRef.current = false;
+          setDeleteNote('データをすべて削除しました。各画面は初期状態に戻ります。');
+        })();
+      },
+      '削除する',
+    );
   };
 
   const sendTest = async () => {
@@ -226,6 +262,7 @@ export default function SettingsScreen() {
                   現在の設定「{profile.className || '未設定'}」は一覧にない形式です。学年と組を選ぶと置き換わります。
                 </Text>
               )}
+              {grade && letter && <Text style={styles.note}>選択中：{grade}年{letter}組</Text>}
             </>
           );
         })()}
@@ -286,7 +323,7 @@ export default function SettingsScreen() {
             onPress={toggleNotif}
             style={[styles.dayChip, notifEnabled && styles.dayChipActive, styles.toggleChip]}>
             <Text style={[styles.dayChipText, notifEnabled && styles.dayChipTextActive]}>
-              {notifEnabled ? 'ON' : 'OFF'}
+              {notifEnabled ? 'オン' : 'オフ'}
             </Text>
           </Pressable>
         </View>
@@ -338,7 +375,7 @@ export default function SettingsScreen() {
           <Text style={styles.cardTitle}>バックアップ</Text>
         </View>
         <Text style={styles.note}>
-          プロフィール・科目・ゼミ・課題・予定など、この端末のデータを1つのコードにまとめます。機種変更や再インストールのときに、「データの取り込み」画面から復元できます。
+          プロフィール・科目・ゼミ・課題・予定など、この端末のデータを1つのコードにまとめます。機種変更や再インストールのときに、「データの取り込み」画面から復元できます。コードには名前やクラスも含まれるので、他の人に見せないでください。
         </Text>
         <Pressable onPress={onBackup} style={styles.saveButton}>
           <Text style={styles.saveButtonText}>バックアップを作成して共有</Text>
@@ -351,6 +388,22 @@ export default function SettingsScreen() {
             </Text>
           </View>
         ) : null}
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.titleRow}>
+          <View style={styles.titleIcon}>
+            <SymbolView name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }} tintColor={Colors.accent} size={18} />
+          </View>
+          <Text style={styles.cardTitle}>データの削除</Text>
+        </View>
+        <Text style={styles.note}>
+          この端末に保存されたデータをすべて消します。バックアップコードを持っていないと元に戻せません。
+        </Text>
+        <Pressable onPress={onDeleteAll}>
+          <Text style={styles.deleteText}>データをすべて削除</Text>
+        </Pressable>
+        {deleteNote ? <Text style={styles.note}>{deleteNote}</Text> : null}
       </View>
 
       <View style={styles.card}>
@@ -436,6 +489,7 @@ const styles = StyleSheet.create({
   saveButtonText: { color: Colors.white, fontSize: FontSize.body, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
   error: { fontSize: FontSize.small, color: Colors.danger, lineHeight: 20 },
+  deleteText: { fontSize: FontSize.body, color: Colors.danger, fontWeight: '600', paddingVertical: Spacing.sm },
   codeBox: {
     borderWidth: 1,
     borderColor: Colors.border,

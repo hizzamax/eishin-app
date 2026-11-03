@@ -1,7 +1,7 @@
 import { DefaultTheme, Stack, ThemeProvider, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/Theme';
@@ -20,6 +20,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  webFrame: { flex: 1, width: '100%', maxWidth: 480, alignSelf: 'center' },
+});
 
 const ebStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.subBackground },
@@ -50,6 +54,10 @@ export default function RootLayout() {
     setupNotificationHandler();
     syncNotifications({}).catch(() => {});
     SplashScreen.hideAsync().catch(() => {});
+    // Web版のページ言語を日本語にする（読み上げ・フォント選択のため）
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.lang = 'ja';
+    }
   }, []);
 
   return <RootLayoutNav />;
@@ -60,12 +68,15 @@ function RootLayoutNav() {
     // アプリ本体は白基調トークン固定のため、ナビゲーションもライトテーマに固定する
     // （ダークモード対応時にここを切り替える）
     <ThemeProvider value={DefaultTheme}>
-      <Stack>
+      {/* Web（PC）では横に伸びすぎないよう、スマホ幅に寄せて中央に置く */}
+      <View style={styles.webFrame}>
+        <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="assignments" options={{ title: '課題' }} />
         <Stack.Screen name="announcements" options={{ title: 'お知らせ' }} />
-        <Stack.Screen name="import" options={{ title: 'データの取り込み' }} />
-      </Stack>
+          <Stack.Screen name="import" options={{ title: 'データの取り込み' }} />
+        </Stack>
+      </View>
     </ThemeProvider>
   );
 }

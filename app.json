@@ -34,6 +34,7 @@
     "slug": "eishin-app",
     "userInterfaceStyle": "automatic",
     "version": "1.0.0",
+    "description": "英心アプリ（非公式）。時間割・課題・カレンダー・掲示板をまとめて使える、生徒有志による非公式アプリです。",
     "web": {
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png",

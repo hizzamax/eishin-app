@@ -69,6 +69,7 @@ export default function HomeScreen() {
   const upcoming = lessons ? nextFromRows(now, lessons) : null;
 
   const urgent = urgentAssignments(assignments, 3);
+  const openAssignmentCount = assignments.filter((a) => a.status !== 'done').length;
   const nearExceptions = upcomingExceptions(exceptions, now).slice(0, 3);
   const todayZemi = zemiFor(now, zemiItems);
 
@@ -147,6 +148,11 @@ export default function HomeScreen() {
           <Pressable style={styles.quickItem}>
             <SymbolView name={{ ios: 'checklist', android: 'checklist', web: 'checklist' }} tintColor={Colors.accent} size={22} />
             <Text style={styles.quickLabel}>課題</Text>
+            {openAssignmentCount > 0 && (
+              <View style={styles.quickBadge}>
+                <Text style={styles.quickBadgeText}>{openAssignmentCount}</Text>
+              </View>
+            )}
           </Pressable>
         </Link>
         <Link href="/announcements" asChild>
@@ -253,7 +259,8 @@ export default function HomeScreen() {
 
       {/* 直近の時間割変更 */}
       {nearExceptions.length > 0 && (
-        <View style={styles.card}>
+        <Link href="/timetable" asChild>
+          <Pressable style={styles.card}>
           <Text style={styles.cardTitle}>直近の時間割変更</Text>
           {nearExceptions.map((e) => (
             <Text key={e.id} style={styles.note}>
@@ -264,12 +271,14 @@ export default function HomeScreen() {
               {e.note ? `（${e.note}）` : ''}
             </Text>
           ))}
-        </View>
+          </Pressable>
+        </Link>
       )}
 
       {/* 次の行事 */}
       {nextEv && (
-        <View style={styles.card}>
+        <Link href="/calendar" asChild>
+          <Pressable style={styles.card}>
           <Text style={styles.cardTitle}>次の行事・予定</Text>
           <View style={styles.eventRow}>
             <View style={styles.countBox}>
@@ -288,7 +297,8 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-        </View>
+          </Pressable>
+        </Link>
       )}
 
       {/* お知らせ */}
@@ -360,6 +370,7 @@ const styles = StyleSheet.create({
   heroSub: { fontSize: FontSize.small, color: 'rgba(255,255,255,0.92)' },
   quickRow: { flexDirection: 'row', gap: Spacing.md },
   quickItem: {
+    position: 'relative',
     flex: 1,
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
@@ -369,6 +380,19 @@ const styles = StyleSheet.create({
     ...Shadow,
   },
   quickLabel: { fontSize: FontSize.caption, color: Colors.text, fontWeight: '600' },
+  quickBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  quickBadgeText: { fontSize: FontSize.caption, color: Colors.white, fontWeight: '700' },
   card: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,

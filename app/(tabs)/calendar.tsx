@@ -175,7 +175,7 @@ export default function CalendarScreen() {
         <View style={styles.rowGap}>
           <Link href="/import" asChild>
             <Pressable>
-              <Text style={styles.linkText}>取り込み</Text>
+              <Text style={styles.linkText}>予定を取り込む</Text>
             </Pressable>
           </Link>
         </View>
@@ -190,16 +190,14 @@ export default function CalendarScreen() {
             {viewYear}年{viewMonth + 1}月
           </Text>
           <View style={styles.rowGap}>
-            {monthOffset !== 0 && (
-              <Pressable
-                onPress={() => {
-                  setMonthOffset(0);
-                  setSelectedKey(toDateKey(today));
-                }}
-                style={styles.todayPill}>
-                <Text style={styles.todayPillText}>今日</Text>
-              </Pressable>
-            )}
+            <Pressable
+              onPress={() => {
+                setMonthOffset(0);
+                setSelectedKey(toDateKey(today));
+              }}
+              style={styles.todayPill}>
+              <Text style={styles.todayPillText}>今日</Text>
+            </Pressable>
             <Pressable onPress={() => setMonthOffset(monthOffset + 1)} style={styles.navCircle}>
               <Text style={styles.navArrow}>›</Text>
             </Pressable>
@@ -263,8 +261,8 @@ export default function CalendarScreen() {
             <Text style={styles.legendText}>課題期限</Text>
           </View>
           <View style={styles.legendItem}>
-            <Text style={[styles.legendText, styles.cellSchool]}>12</Text>
-            <Text style={styles.legendText}>登校日</Text>
+            <View style={styles.legendUnderline} />
+            <Text style={styles.legendText}>登校日（下線）</Text>
           </View>
         </View>
       </View>
@@ -494,6 +492,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cellSchool: { textDecorationLine: 'underline' },
+  legendUnderline: { width: 14, height: 8, borderBottomWidth: 2, borderBottomColor: Colors.accent },
   dotRow: { flexDirection: 'row', gap: 2, marginTop: 2, height: 6 },
   navCircle: {
     width: 38,

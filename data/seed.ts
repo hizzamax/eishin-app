@@ -49,7 +49,7 @@ export const SAMPLE_SUBJECTS: Partial<Record<WeekdayLabel, string[]>> = {
 
 export const EVENTS: SchoolEvent[] = [
   { date: '2026-11-04', time: '16:45-17:30', title: 'オープンキャンパス実行委員会', place: '1-C教室', kind: 'event' },
-  { date: '2026-11-05', time: '14:00-', title: '防災フェス最終準備', place: '', kind: 'prep' },
+  { date: '2026-11-05', time: '14:00〜', title: '防災フェス最終準備', place: '', kind: 'prep' },
   { date: '2026-11-07', time: '', title: '防災フェス', place: '', kind: 'school' },
   { date: '2026-11-08', time: '', title: '第2回英検（二次）', place: '', kind: 'event' },
   { date: '2026-11-12', time: '', title: '集中⑧', place: '', kind: 'event' },

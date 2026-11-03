@@ -9,7 +9,7 @@ export const Colors = {
   subBackground: '#F5F5F5',
   card: '#FFFFFF',
   text: '#202124',
-  subText: '#858585',
+  subText: '#6E6E6E',
   border: '#EEEEEE',
   accent: '#F28C65',
   accentSub: '#F5B18E',
@@ -23,7 +23,7 @@ export const Colors = {
   successSoft: '#E7F5EE',
   white: '#FFFFFF',
   sunday: '#D97B8C',
-  tabInactive: '#B9B9B9',
+  tabInactive: '#8A8A8A',
 } as const;
 
 /** ヒーローカード用グラデーション（コーラル→ピーチ） */

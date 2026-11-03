@@ -224,14 +224,20 @@ export default function CommunityScreen() {
             placeholderTextColor={Colors.subText}
             multiline
           />
-          {kind === 'timetable' && (
-            <Pressable onPress={() => setAttach(!attach)} style={styles.rowBetween}>
-              <Text style={styles.bodyText}>今の時間割を添付する（取り込み可能にする）</Text>
+          <Pressable
+            onPress={() => {
+              if (kind === 'timetable') setAttach(!attach);
+            }}
+            style={styles.rowBetween}>
+            <Text style={styles.bodyText}>今の時間割を添付する（取り込み可能にする）</Text>
+            {kind === 'timetable' ? (
               <View style={[styles.togglePill, attach && styles.togglePillOn]}>
                 <Text style={[styles.toggleText, attach && styles.toggleTextOn]}>{attach ? 'ON' : 'OFF'}</Text>
               </View>
-            </Pressable>
-          )}
+            ) : (
+              <Text style={styles.note}>種類で「時間割」を選ぶと添付できます</Text>
+            )}
+          </Pressable>
           <Text style={styles.note}>投稿者名は設定の名前（未設定なら「匿名」）とクラスが表示されます。個人情報は書かないでください。</Text>
           {formError ? <Text style={styles.error}>{formError}</Text> : null}
           <Pressable onPress={onPost} disabled={posting} style={styles.primaryButton}>

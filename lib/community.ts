@@ -40,7 +40,7 @@ const LOCAL_KEY = 'eishin.communityLocal.v1';
 const SAMPLE_POSTS: CommunityPost[] = [
   {
     id: 'sample-2',
-    author: 'サンプル',
+    author: '表示例',
     className: '3-A',
     title: '投稿の例：時間割を共有するとき',
     body: '「時間割を添付」をオンにして投稿すると、他の人がこの投稿から自分のアプリに時間割を取り込めるようになります。これは表示例の投稿です（サンプルのため取り込みボタンはありません）。',
@@ -51,7 +51,7 @@ const SAMPLE_POSTS: CommunityPost[] = [
   },
   {
     id: 'sample-1',
-    author: 'サンプル',
+    author: '表示例',
     className: '',
     title: '投稿の例：こんな使い方ができます',
     body: '行事の準備の呼びかけや、勉強会のお知らせなど、みんなに知らせたいことを投稿できます。これは表示例の投稿です。',
