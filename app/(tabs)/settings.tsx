@@ -123,6 +123,7 @@ export default function SettingsScreen() {
             'eishin.notifsettings.v1',
             'eishin.importHistory.v1',
             'eishin.communityLocal.v1',
+            'eishin.onboarded.v1',
           ]);
           await cancelAllNotifications();
           const fresh = await loadProfile();

@@ -1,11 +1,13 @@
 import { DefaultTheme, Stack, ThemeProvider, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { Colors, FontSize, Radius, Spacing } from '@/constants/Theme';
+import Onboarding from '@/components/Onboarding';
 import { setupNotificationHandler, syncNotifications } from '@/lib/notifications';
+import { needsOnboarding } from '@/lib/onboarding';
 
 /** 画面描画で例外が起きたときの受け皿（スタックは開発時のみ表示）。 */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
@@ -60,6 +62,22 @@ export default function RootLayout() {
     }
   }, []);
 
+  // 初回起動時は案内画面を出す（既存ユーザーは needsOnboarding 側で通過する）
+  const [gate, setGate] = useState<'loading' | 'onboarding' | 'app'>('loading');
+  useEffect(() => {
+    needsOnboarding()
+      .then((needed) => setGate(needed ? 'onboarding' : 'app'))
+      .catch(() => setGate('app'));
+  }, []);
+
+  if (gate === 'loading') return null;
+  if (gate === 'onboarding') {
+    return (
+      <ThemeProvider value={DefaultTheme}>
+        <Onboarding onDone={() => setGate('app')} />
+      </ThemeProvider>
+    );
+  }
   return <RootLayoutNav />;
 }
 
