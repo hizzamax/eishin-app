@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -83,6 +84,11 @@ export default function TimetableScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <Link href="/share" asChild>
+        <Pressable style={styles.shareButton}>
+          <Text style={styles.shareButtonText}>時間割を共有・取り込む（QR・コード）</Text>
+        </Pressable>
+      </Link>
       <View style={styles.dayRow}>
         {DAY_TABS.map((day) => (
           <Pressable
@@ -315,6 +321,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.subBackground },
   content: { padding: Spacing.lg, gap: Spacing.lg },
   heading: { fontSize: FontSize.lead, fontWeight: '700', color: Colors.text },
+  shareButton: {
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    backgroundColor: Colors.accentSoft,
+  },
+  shareButtonText: { color: Colors.accent, fontSize: FontSize.body, fontWeight: '600' },
   dayRow: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
   dayChip: {
     flex: 1,

@@ -1,17 +1,67 @@
+import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { ALL_CLASS_DAY_CANDIDATES, type WeekdayLabel } from '@/data/seed';
+import {
+  cancelAllNotifications,
+  loadNotifSettings,
+  notificationsRuntimeSupported,
+  notifyNow,
+  requestNotificationPermission,
+  saveNotifSettings,
+  syncNotifications,
+} from '@/lib/notifications';
 import { loadProfile, saveProfile, type Profile } from '@/lib/profile';
 
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState(false);
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [notifNote, setNotifNote] = useState('');
+  const expoGo = !notificationsRuntimeSupported();
 
   useEffect(() => {
     loadProfile().then(setProfile);
+    loadNotifSettings().then((s) => setNotifEnabled(s.enabled));
   }, []);
+
+  const toggleNotif = async () => {
+    const next = !notifEnabled;
+    setNotifEnabled(next);
+    await saveNotifSettings({ enabled: next });
+    if (next) {
+      if (expoGo) {
+        setNotifNote('Expo Goでは通知は動作しません。開発ビルド／製品版で有効になります。');
+        return;
+      }
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        setNotifNote('通知の許可がありませんでした。端末の設定で許可してください。');
+        return;
+      }
+      const res = await syncNotifications({});
+      setNotifNote(`通知を有効にしました（${res.scheduled}件を予約）`);
+    } else {
+      await cancelAllNotifications();
+      setNotifNote('通知を無効にしました');
+    }
+  };
+
+  const sendTest = async () => {
+    if (expoGo) {
+      setNotifNote('Expo Goではテスト通知も送れません。開発ビルド／製品版でお試しください。');
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) {
+      setNotifNote('通知の許可がありませんでした。端末の設定で許可してください。');
+      return;
+    }
+    const ok = await notifyNow('テスト通知', '英心アプリ（非公式）の通知テストです。');
+    setNotifNote(ok ? 'テスト通知を送りました' : 'テスト通知を送れませんでした');
+  };
 
   if (!profile) {
     return (
@@ -97,12 +147,54 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>通知</Text>
+        <Text style={styles.note}>
+          課題の期限（前日20時・当日8時）、行事・予定（前日18時）、時間割変更（前日20時と登録時）を、この端末のローカル通知で知らせます。
+        </Text>
+        <View style={styles.rowBetween}>
+          <Text style={styles.bodyText}>通知を受け取る</Text>
+          <Pressable
+            onPress={toggleNotif}
+            style={[styles.dayChip, notifEnabled && styles.dayChipActive, styles.toggleChip]}>
+            <Text style={[styles.dayChipText, notifEnabled && styles.dayChipTextActive]}>
+              {notifEnabled ? 'ON' : 'OFF'}
+            </Text>
+          </Pressable>
+        </View>
+        {expoGo && (
+          <Text style={styles.note}>
+            ※ いまのプレビュー（Expo Go）では通知機能が動作しません。開発ビルド／製品版で有効になります。
+          </Text>
+        )}
+        {notifNote ? <Text style={styles.note}>{notifNote}</Text> : null}
+        <Pressable onPress={sendTest} style={styles.ghostButton}>
+          <Text style={styles.linkText}>テスト通知を送る</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>共有・お知らせ</Text>
+        <Link href="/share" asChild>
+          <Pressable style={styles.rowBetween}>
+            <Text style={styles.bodyText}>時間割の共有（QR・コード）</Text>
+            <Text style={styles.linkText}>開く</Text>
+          </Pressable>
+        </Link>
+        <Link href="/announcements" asChild>
+          <Pressable style={styles.rowBetween}>
+            <Text style={styles.bodyText}>お知らせ</Text>
+            <Text style={styles.linkText}>開く</Text>
+          </Pressable>
+        </Link>
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>アプリ情報</Text>
         <Text style={styles.note}>英心アプリ（非公式） バージョン 1.0.0</Text>
         <Text style={styles.note}>
           このアプリは生徒有志による非公式アプリです。学校公式のものではなく、学校との提携・公式認定を受けたものではありません。
         </Text>
-        <Text style={styles.note}>通知・ダークモード・バックアップは今後のアップデートで対応予定です。</Text>
+        <Text style={styles.note}>ダークモード・バックアップは今後のアップデートで対応予定です。</Text>
       </View>
     </ScrollView>
   );
@@ -154,4 +246,9 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { color: '#FFFFFF', fontSize: FontSize.body, fontWeight: '600' },
   note: { fontSize: FontSize.small, color: Colors.subText, lineHeight: 20 },
+  bodyText: { fontSize: FontSize.body, color: Colors.text },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  toggleChip: { flex: 0, paddingHorizontal: Spacing.lg },
+  linkText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
+  ghostButton: { paddingVertical: Spacing.xs },
 });

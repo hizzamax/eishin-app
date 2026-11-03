@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, FontSize, Radius, Shadow, Spacing } from '@/constants/Theme';
 import { FREE_DAYS_NOTE } from '@/data/seed';
+import { useAnnouncements } from '@/lib/announcements';
 import { daysUntil, urgentAssignments, useAssignments } from '@/lib/assignments';
 import { effectiveKind } from '@/lib/attendance';
 import { useAttendance } from '@/lib/attendance';
@@ -35,6 +36,8 @@ export default function HomeScreen() {
   const { items: exceptions } = useExceptions();
   const { items: personalEvents } = usePersonalEvents();
   const { items: zemiItems } = useZemi();
+  const { items: announcementItems, unreadCount } = useAnnouncements();
+  const latestAnnouncement = announcementItems[0];
 
   const now = useMemo(() => new Date(), []);
   const classDays = profile?.classDays ?? ['月', '水', '金'];
@@ -176,6 +179,26 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {latestAnnouncement && (
+        <View style={styles.card}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.cardTitle}>お知らせ</Text>
+            {unreadCount > 0 && (
+              <View style={styles.unreadChip}>
+                <Text style={styles.unreadChipText}>未読 {unreadCount}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.eventTitle}>{latestAnnouncement.title}</Text>
+          <Text style={styles.note}>アプリからのお知らせです（学校公式ではありません）</Text>
+          <Link href="/announcements" asChild>
+            <Pressable style={styles.linkButton}>
+              <Text style={styles.linkButtonText}>お知らせを見る</Text>
+            </Pressable>
+          </Link>
+        </View>
+      )}
+
       <Text style={styles.footer}>このアプリは生徒有志による非公式アプリです。学校公式のものではありません。</Text>
     </ScrollView>
   );
@@ -207,6 +230,9 @@ const styles = StyleSheet.create({
   nextLesson: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600', marginTop: Spacing.xs },
   linkButton: { marginTop: Spacing.xs },
   linkButtonText: { fontSize: FontSize.body, color: Colors.accent, fontWeight: '600' },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  unreadChip: { backgroundColor: Colors.accent, borderRadius: Radius.sm, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
+  unreadChipText: { fontSize: FontSize.caption, color: '#FFFFFF', fontWeight: '700' },
   assignmentRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: Spacing.sm },
   assignmentTitle: { fontSize: FontSize.body, color: Colors.text, flex: 1 },
   assignmentDue: { fontSize: FontSize.small, color: Colors.subText },

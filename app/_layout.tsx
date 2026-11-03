@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { setupNotificationHandler, syncNotifications } from '@/lib/notifications';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -23,6 +24,12 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  // ローカル通知：ハンドラ設定と、保存済みデータに合わせた予約の組み直し（起動時）
+  useEffect(() => {
+    setupNotificationHandler();
+    syncNotifications({}).catch(() => {});
+  }, []);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -52,6 +59,8 @@ function RootLayoutNav() {
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="assignments" options={{ title: '課題' }} />
         <Stack.Screen name="attendance" options={{ title: '登校予定' }} />
+        <Stack.Screen name="announcements" options={{ title: 'お知らせ' }} />
+        <Stack.Screen name="share" options={{ title: '時間割の共有' }} />
       </Stack>
     </ThemeProvider>
   );

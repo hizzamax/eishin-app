@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
 import { newId } from '@/lib/assignments';
+import { notifyNow, syncNotifications } from '@/lib/notifications';
 import { toDateKey, type LessonRow } from '@/lib/school';
 
 /**
@@ -27,6 +28,15 @@ async function loadAll(): Promise<TimetableException[]> {
   } catch {
     return [];
   }
+}
+
+/** 共有機能などから直接読み書きするためのヘルパー */
+export async function loadExceptionsAll(): Promise<TimetableException[]> {
+  return loadAll();
+}
+
+export async function saveExceptionsAll(items: TimetableException[]): Promise<void> {
+  await AsyncStorage.setItem(KEY, JSON.stringify(items));
 }
 
 /** 例外を適用した授業行を返す（変更があった行には changed=true） */
@@ -68,7 +78,9 @@ export function useExceptions() {
 
   const persist = useCallback((next: TimetableException[]) => {
     setItems(next);
-    AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(KEY, JSON.stringify(next))
+      .then(() => syncNotifications({ exceptions: next }))
+      .catch(() => {});
   }, []);
 
   /** 同じ日・時限の例外があれば上書き、なければ追加 */
@@ -80,6 +92,11 @@ export function useExceptions() {
       } else {
         persist([...items, { ...draft, id: newId() }]);
       }
+      // 時間割変更の通知（その場で1件）。通知が無効・未対応環境では何も起きない。
+      notifyNow(
+        '時間割変更を登録しました',
+        `${draft.date} ${draft.periodLabel}：${draft.subject === null ? '休講' : draft.subject}`,
+      ).catch(() => {});
     },
     [items, persist],
   );

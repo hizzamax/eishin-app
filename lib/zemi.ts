@@ -33,6 +33,15 @@ async function loadAll(): Promise<ZemiEntry[]> {
   }
 }
 
+/** 共有機能などから直接読み書きするためのヘルパー */
+export async function loadZemiAll(): Promise<ZemiEntry[]> {
+  return loadAll();
+}
+
+export async function saveZemiAll(items: ZemiEntry[]): Promise<void> {
+  await AsyncStorage.setItem(KEY, JSON.stringify(items));
+}
+
 export function zemiFor(date: Date, entries: ZemiEntry[]): ZemiEntry[] {
   const wd = weekdayLabel(date);
   return entries.filter((z) => z.weekday === wd).sort((a, b) => a.start.localeCompare(b.start));

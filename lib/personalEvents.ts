@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
 import { newId } from '@/lib/assignments';
+import { syncNotifications } from '@/lib/notifications';
 
 export type PersonalEvent = {
   id: string;
@@ -43,7 +44,9 @@ export function usePersonalEvents() {
 
   const persist = useCallback((next: PersonalEvent[]) => {
     setItems(next);
-    AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+    AsyncStorage.setItem(KEY, JSON.stringify(next))
+      .then(() => syncNotifications({ personalEvents: next }))
+      .catch(() => {});
   }, []);
 
   const add = useCallback(

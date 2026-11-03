@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
+import { syncNotifications } from '@/lib/notifications';
+
 export type AssignmentStatus = 'todo' | 'doing' | 'done';
 
 export type Assignment = {
@@ -79,7 +81,9 @@ export function useAssignments() {
 
   const persist = useCallback((next: Assignment[]) => {
     setItems(next);
-    saveAll(next).catch(() => {});
+    saveAll(next)
+      .then(() => syncNotifications({ assignments: next }))
+      .catch(() => {});
   }, []);
 
   const add = useCallback(
